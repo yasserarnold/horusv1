@@ -7,8 +7,8 @@ import { Navbar } from "./components/Navbar";
 import { SearchFilters } from "./components/SearchFilters";
 import { PropertyCard } from "./components/PropertyCard";
 import { PropertyDetails } from "./components/PropertyDetails";
-import { admin } from "./pages/admin";
-import { login } from "./pages/login";
+import { Admin } from "./pages/Admin";
+import { Login } from "./pages/Login";
 
 function HomePage() {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -382,8 +382,8 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={<login />} />
-      <Route path="/admin" element={<admin />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/admin" element={<Admin />} />
     </Routes>
   );
 }
