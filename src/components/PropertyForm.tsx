@@ -404,7 +404,7 @@ export const PropertyForm = ({ property, onClose }: PropertyFormProps) => {
               <div className="grid grid-cols-3 gap-3">
                 {images.map((img, idx) => (
                   <div key={idx} className="relative group">
-                    <img src={img} alt={`صورة ${idx + 1}`} className="w-full h-24 object-cover rounded-lg" />
+                    <img src={img} alt={`صورة ${idx + 1}`} className="w-full h-24 object-contain bg-slate-100 rounded-lg" />
                     <button
                       type="button"
                       onClick={() => handleRemoveImage(idx)}

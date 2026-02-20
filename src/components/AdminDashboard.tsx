@@ -381,7 +381,7 @@ export const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                     <img
                       src={property.images && property.images.length > 0 ? property.images[0] : 'https://images.pexels.com/photos/106399/pexels-photo-106399.jpeg?auto=compress&cs=tinysrgb&w=300'}
                       alt={property.name}
-                      className="w-32 h-32 object-cover rounded-lg flex-shrink-0"
+                      className="w-32 h-32 object-contain bg-slate-100 rounded-lg flex-shrink-0"
                     />
                     <div className="flex-1">
                       <div className="flex justify-between items-start mb-2">

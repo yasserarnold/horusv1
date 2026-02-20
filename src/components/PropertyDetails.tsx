@@ -67,7 +67,7 @@ export const PropertyDetails = ({ property, onClose }: PropertyDetailsProps) => 
               <img
                 src={images[currentImageIndex]}
                 alt={property.name}
-                className="w-full h-96 object-cover rounded-xl"
+                className="w-full h-96 object-contain bg-slate-100 rounded-xl"
               />
               {images.length > 1 && (
                 <>
@@ -102,7 +102,7 @@ export const PropertyDetails = ({ property, onClose }: PropertyDetailsProps) => 
                     src={img}
                     alt={`${property.name} - ${idx + 1}`}
                     onClick={() => setCurrentImageIndex(idx)}
-                    className={`w-24 h-24 object-cover rounded-lg cursor-pointer border-2 transition-all ${
+                    className={`w-24 h-24 object-contain bg-slate-100 rounded-lg cursor-pointer border-2 transition-all ${
                       idx === currentImageIndex ? 'border-amber-500 scale-105' : 'border-transparent opacity-70 hover:opacity-100'
                     }`}
                   />

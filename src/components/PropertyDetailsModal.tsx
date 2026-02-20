@@ -41,7 +41,7 @@ export const PropertyDetailsModal = ({ property, onClose }: PropertyDetailsModal
                   key={index}
                   src={image}
                   alt={`${property.name} - صورة ${index + 1}`}
-                  className="w-full h-48 object-cover rounded-lg shadow-md"
+                  className="w-full h-48 object-contain bg-slate-100 rounded-lg shadow-md"
                 />
               ))}
             </div>

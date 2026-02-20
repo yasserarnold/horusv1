@@ -16,11 +16,11 @@ export const PropertyCard = ({ property, onClick }: PropertyCardProps) => {
       onClick={onClick}
       className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 cursor-pointer group"
     >
-      <div className="relative h-56 overflow-hidden">
+      <div className="relative h-56 overflow-hidden bg-slate-100">
         <img
           src={mainImage}
           alt={property.name}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          className="w-full h-full object-contain transition-opacity duration-300 group-hover:opacity-95"
         />
         <div className="absolute top-4 right-4 flex gap-2">
           <span className="px-3 py-1 bg-slate-900 text-white rounded-full text-sm font-medium shadow-lg">
