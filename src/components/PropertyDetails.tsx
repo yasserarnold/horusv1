@@ -1,30 +1,49 @@
-import { X, Bed, Bath, Maximize, MapPin, Home, Layers, Phone, MessageCircle, ChevronLeft, ChevronRight, Hash } from 'lucide-react';
-import { Property } from '../lib/supabase';
-import { useState, useEffect } from 'react';
+import {
+  X,
+  Bed,
+  Bath,
+  Maximize,
+  MapPin,
+  Home,
+  Layers,
+  Phone,
+  MessageCircle,
+  ChevronLeft,
+  ChevronRight,
+  Hash,
+} from "lucide-react";
+import { Property } from "../lib/supabase";
+import { useState, useEffect } from "react";
 
 interface PropertyDetailsProps {
   property: Property;
   onClose: () => void;
 }
 
-export const PropertyDetails = ({ property, onClose }: PropertyDetailsProps) => {
+export const PropertyDetails = ({
+  property,
+  onClose,
+}: PropertyDetailsProps) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const phoneNumber = '00201140929451';
-  const whatsappNumber = '201140929451'; // بدون 00 في البداية للواتساب
+  const phoneNumber = "00201002100785";
+  const whatsappNumber = "201002100785"; // بدون 00 في البداية للواتساب
 
   const handleContactUs = () => {
     // عرض رقم الهاتف
     alert(`رقم الهاتف: ${phoneNumber}\n\nسيتم فتح واتساب للتواصل...`);
-    
+
     // فتح واتساب مع رسالة جاهزة
     const message = `مرحباً، أنا مهتم بالعقار: ${property.name}\nكود العقار: ${property.property_code}`;
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+    window.open(whatsappUrl, "_blank");
   };
 
-  const images = property.images && property.images.length > 0
-    ? property.images
-    : ['https://images.pexels.com/photos/106399/pexels-photo-106399.jpeg?auto=compress&cs=tinysrgb&w=1200'];
+  const images =
+    property.images && property.images.length > 0
+      ? property.images
+      : [
+          "https://images.pexels.com/photos/106399/pexels-photo-106399.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        ];
 
   const nextImage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % images.length);
@@ -37,15 +56,17 @@ export const PropertyDetails = ({ property, onClose }: PropertyDetailsProps) => 
   // دعم لوحة المفاتيح للتنقل بين الصور
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') {
-        setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
-      } else if (e.key === 'ArrowLeft') {
+      if (e.key === "ArrowRight") {
+        setCurrentImageIndex(
+          (prev) => (prev - 1 + images.length) % images.length,
+        );
+      } else if (e.key === "ArrowLeft") {
         setCurrentImageIndex((prev) => (prev + 1) % images.length);
       }
     };
 
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
   }, [images.length]);
 
   return (
@@ -103,7 +124,9 @@ export const PropertyDetails = ({ property, onClose }: PropertyDetailsProps) => 
                     alt={`${property.name} - ${idx + 1}`}
                     onClick={() => setCurrentImageIndex(idx)}
                     className={`w-24 h-24 object-contain bg-slate-100 rounded-lg cursor-pointer border-2 transition-all ${
-                      idx === currentImageIndex ? 'border-amber-500 scale-105' : 'border-transparent opacity-70 hover:opacity-100'
+                      idx === currentImageIndex
+                        ? "border-amber-500 scale-105"
+                        : "border-transparent opacity-70 hover:opacity-100"
                     }`}
                   />
                 ))}
@@ -141,14 +164,18 @@ export const PropertyDetails = ({ property, onClose }: PropertyDetailsProps) => 
                 {property.description}
               </p>
 
-              <h3 className="text-xl font-bold text-slate-900 mb-4">المواصفات</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-4">
+                المواصفات
+              </h3>
               <div className="grid grid-cols-2 gap-4">
                 {property.bedrooms > 0 && (
                   <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg">
                     <Bed className="w-6 h-6 text-amber-600" />
                     <div>
                       <p className="text-sm text-slate-500">غرف النوم</p>
-                      <p className="text-lg font-bold text-slate-900">{property.bedrooms}</p>
+                      <p className="text-lg font-bold text-slate-900">
+                        {property.bedrooms}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -157,7 +184,9 @@ export const PropertyDetails = ({ property, onClose }: PropertyDetailsProps) => 
                     <Bath className="w-6 h-6 text-amber-600" />
                     <div>
                       <p className="text-sm text-slate-500">الحمامات</p>
-                      <p className="text-lg font-bold text-slate-900">{property.bathrooms}</p>
+                      <p className="text-lg font-bold text-slate-900">
+                        {property.bathrooms}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -165,7 +194,9 @@ export const PropertyDetails = ({ property, onClose }: PropertyDetailsProps) => 
                   <Maximize className="w-6 h-6 text-amber-600" />
                   <div>
                     <p className="text-sm text-slate-500">المساحة</p>
-                    <p className="text-lg font-bold text-slate-900">{property.area} م²</p>
+                    <p className="text-lg font-bold text-slate-900">
+                      {property.area} م²
+                    </p>
                   </div>
                 </div>
                 {property.floor !== null && property.floor > 0 && (
@@ -173,7 +204,9 @@ export const PropertyDetails = ({ property, onClose }: PropertyDetailsProps) => 
                     <Layers className="w-6 h-6 text-amber-600" />
                     <div>
                       <p className="text-sm text-slate-500">الطابق</p>
-                      <p className="text-lg font-bold text-slate-900">{property.floor}</p>
+                      <p className="text-lg font-bold text-slate-900">
+                        {property.floor}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -184,13 +217,15 @@ export const PropertyDetails = ({ property, onClose }: PropertyDetailsProps) => 
               <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-6 rounded-xl border-2 border-amber-200 sticky top-24">
                 <p className="text-sm text-slate-600 mb-2">السعر</p>
                 <p className="text-4xl font-bold text-amber-600 mb-6">
-                  {property.price.toLocaleString('ar-EG')} جنيه
+                  {property.price.toLocaleString("ar-EG")} جنيه
                 </p>
 
                 <div className="space-y-3 mb-6">
                   <div className="flex items-center gap-2 text-slate-700">
                     <Home className="w-5 h-5" />
-                    <span>{property.city} - {property.area_name}</span>
+                    <span>
+                      {property.city} - {property.area_name}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-700">
                     <MapPin className="w-5 h-5" />
@@ -207,7 +242,7 @@ export const PropertyDetails = ({ property, onClose }: PropertyDetailsProps) => 
                     <span>تواصل عبر واتساب</span>
                   </button>
                   <a
-                    href={`tel:${phoneNumber.replace(/\s/g, '')}`}
+                    href={`tel:${phoneNumber.replace(/\s/g, "")}`}
                     className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all shadow-lg hover:shadow-xl font-bold flex items-center justify-center gap-2"
                   >
                     <Phone className="w-5 h-5" />

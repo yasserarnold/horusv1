@@ -15,7 +15,7 @@ function HomePage() {
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(
-    null
+    null,
   );
   const [filters, setFilters] = useState({
     propertyCode: "",
@@ -62,7 +62,7 @@ function HomePage() {
       filtered = filtered.filter((p) =>
         p.property_code
           .toLowerCase()
-          .includes(filters.propertyCode.toLowerCase())
+          .includes(filters.propertyCode.toLowerCase()),
       );
     }
 
@@ -76,7 +76,7 @@ function HomePage() {
 
     if (filters.propertyType) {
       filtered = filtered.filter(
-        (p) => p.property_type === filters.propertyType
+        (p) => p.property_type === filters.propertyType,
       );
     }
 
@@ -86,13 +86,13 @@ function HomePage() {
 
     if (filters.minPrice) {
       filtered = filtered.filter(
-        (p) => p.price >= parseFloat(filters.minPrice)
+        (p) => p.price >= parseFloat(filters.minPrice),
       );
     }
 
     if (filters.maxPrice) {
       filtered = filtered.filter(
-        (p) => p.price <= parseFloat(filters.maxPrice)
+        (p) => p.price <= parseFloat(filters.maxPrice),
       );
     }
 
@@ -122,14 +122,14 @@ function HomePage() {
     .filter((p) => !featuredIds.has(p.id))
     .sort(
       (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     )
     .slice(0, 6);
 
   // قسم جميع الإعلانات: جميع الإعلانات مرتبة حسب التاريخ (بما في ذلك المميزة)
   const allOtherProperties = [...properties].sort(
     (a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
 
   if (loading) {
@@ -333,7 +333,7 @@ function HomePage() {
             <p className="text-slate-300 mb-4">منصتك الموثوقة للعقارات</p>
             <div className="flex justify-center gap-4 mb-6 flex-wrap">
               <a
-                href="https://wa.me/201140929451"
+                href="https://wa.me/201002100785"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 rounded-lg transition-colors font-medium shadow-lg hover:shadow-xl"
@@ -351,11 +351,11 @@ function HomePage() {
                 <span>تواصل عبر البوت</span>
               </a>
               <a
-                href="tel:00201140929451"
+                href="tel:00201002100785"
                 className="flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 rounded-lg transition-colors font-medium shadow-lg hover:shadow-xl"
               >
                 <span>📞</span>
-                <span>اتصل بنا: 00201140929451</span>
+                <span>اتصل بنا: 201002100785</span>
               </a>
             </div>
             <div className="flex justify-center gap-8 mb-6 text-sm text-slate-400">
