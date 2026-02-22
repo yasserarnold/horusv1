@@ -5,10 +5,6 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
-const TELEGRAM_ADMIN_IDS = (process.env.TELEGRAM_ADMIN_IDS || '')
-  .split(',')
-  .map((id) => id.trim())
-  .filter(Boolean);
 
 const PUBLIC_SITE_URL = process.env.PUBLIC_SITE_URL || process.env.SITE_URL || '';
 
@@ -26,33 +22,21 @@ const formatNumber = (value) => {
   }
 };
 
-const isAdmin = (userId) => TELEGRAM_ADMIN_IDS.includes(String(userId));
 
 const getCommand = (text) => {
   if (!text || !text.startsWith('/')) return '';
   return text.split(/\s+/)[0].split('@')[0];
 };
 
-const buildHelp = (admin) => {
+const buildHelp = () => {
   const lines = [
     'مرحباً بك في بوت عقارات حورس 👋',
     '',
     'الأوامر المتاحة:',
     '/search كلمة - بحث بالاسم أو المدينة أو الكود',
     '/code كود - بحث مباشر بكود العقار',
-    '/id - عرض رقم المستخدم (لاستخدامه في الإدارة)',
     '/help - المساعدة',
   ];
-
-  if (admin) {
-    lines.push('');
-    lines.push('أوامر الإدارة:');
-    lines.push('/admin - قائمة الإدارة');
-    lines.push('/stats - إحصائيات العقارات');
-    lines.push('/latest - أحدث 5 عقارات');
-    lines.push('/feature كود on|off - تمييز/إلغاء تمييز عقار');
-    lines.push('/price كود رقم - تحديث السعر');
-  }
 
   return lines.join('\n');
 };
@@ -74,6 +58,27 @@ const sendMessage = async (chatId, text, extra = {}) => {
     disable_web_page_preview: true,
     ...extra,
   });
+};
+
+const sendPhoto = async (chatId, photo, caption) => {
+  return sendTelegram('sendPhoto', {
+    chat_id: chatId,
+    photo,
+    caption,
+  });
+};
+
+const sendMediaGroup = async (chatId, media) => {
+  return sendTelegram('sendMediaGroup', {
+    chat_id: chatId,
+    media,
+  });
+};
+
+const limitCaption = (text, max = 900) => {
+  if (!text) return '';
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 3)}...`;
 };
 
 const buildPropertyText = (property) => {
@@ -98,6 +103,40 @@ const buildPropertyText = (property) => {
   return lines.join('\n');
 };
 
+const getImages = (property) => {
+  if (!property || !Array.isArray(property.images)) return [];
+  return property.images.filter((url) => typeof url === 'string' && url.trim().length > 0);
+};
+
+const sendProperty = async (chatId, property) => {
+  const caption = limitCaption(buildPropertyText(property));
+  const images = getImages(property).slice(0, 5);
+
+  if (images.length === 0) {
+    await sendMessage(chatId, caption);
+    return;
+  }
+
+  if (images.length === 1) {
+    const result = await sendPhoto(chatId, images[0], caption);
+    if (!result?.ok) {
+      await sendMessage(chatId, caption);
+    }
+    return;
+  }
+
+  const media = images.map((url, index) => ({
+    type: 'photo',
+    media: url,
+    ...(index === 0 ? { caption } : {}),
+  }));
+
+  const result = await sendMediaGroup(chatId, media);
+  if (!result?.ok) {
+    await sendMessage(chatId, caption);
+  }
+};
+
 const searchProperties = async (query) => {
   const raw = (query || '').trim();
   if (!raw) return [];
@@ -109,7 +148,7 @@ const searchProperties = async (query) => {
     const { data: exact } = await supabase
       .from('properties')
       .select(
-        'id, property_code, name, city, area_name, price, area, bedrooms, bathrooms, listing_type, property_type, featured'
+        'id, property_code, name, city, area_name, price, area, bedrooms, bathrooms, listing_type, property_type, featured, images'
       )
       .eq('property_code', codeCandidate)
       .limit(1)
@@ -122,7 +161,7 @@ const searchProperties = async (query) => {
   const { data } = await supabase
     .from('properties')
     .select(
-      'id, property_code, name, city, area_name, price, area, bedrooms, bathrooms, listing_type, property_type, featured'
+      'id, property_code, name, city, area_name, price, area, bedrooms, bathrooms, listing_type, property_type, featured, images'
     )
     .or(
       `name.ilike.${like},city.ilike.${like},area_name.ilike.${like},address.ilike.${like},property_code.ilike.${like}`
@@ -130,100 +169,6 @@ const searchProperties = async (query) => {
     .limit(MAX_RESULTS);
 
   return data || [];
-};
-
-const handleStats = async (chatId) => {
-  const { count: totalCount } = await supabase
-    .from('properties')
-    .select('id', { count: 'exact', head: true });
-
-  const { count: featuredCount } = await supabase
-    .from('properties')
-    .select('id', { count: 'exact', head: true })
-    .eq('featured', true);
-
-  const lines = [
-    '📊 الإحصائيات',
-    `إجمالي العقارات: ${totalCount || 0}`,
-    `العقارات المميزة: ${featuredCount || 0}`,
-  ];
-
-  await sendMessage(chatId, lines.join('\n'));
-};
-
-const handleLatest = async (chatId) => {
-  const { data } = await supabase
-    .from('properties')
-    .select(
-      'id, property_code, name, city, area_name, price, area, bedrooms, bathrooms, listing_type, property_type, featured, created_at'
-    )
-    .order('created_at', { ascending: false })
-    .limit(5);
-
-  if (!data || data.length === 0) {
-    await sendMessage(chatId, 'لا توجد عقارات حالياً.');
-    return;
-  }
-
-  await sendMessage(chatId, '🆕 أحدث العقارات:');
-
-  for (const property of data) {
-    await sendMessage(chatId, buildPropertyText(property));
-  }
-};
-
-const handleFeature = async (chatId, args) => {
-  const [code, state] = args;
-  if (!code || !state) {
-    await sendMessage(chatId, 'الاستخدام: /feature كود on|off');
-    return;
-  }
-
-  const enabled = state.toLowerCase() === 'on';
-
-  const { data, error } = await supabase
-    .from('properties')
-    .update({ featured: enabled })
-    .eq('property_code', code)
-    .select('name, property_code, featured')
-    .maybeSingle();
-
-  if (error || !data) {
-    await sendMessage(chatId, 'لم يتم العثور على العقار بالكود المحدد.');
-    return;
-  }
-
-  await sendMessage(
-    chatId,
-    `تم تحديث التمييز: ${data.name} (${data.property_code}) -> ${data.featured ? 'مميز' : 'غير مميز'}`
-  );
-};
-
-const handlePrice = async (chatId, args) => {
-  const [code, priceText] = args;
-  const price = Number(priceText);
-
-  if (!code || !priceText || Number.isNaN(price) || price <= 0) {
-    await sendMessage(chatId, 'الاستخدام: /price كود رقم');
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from('properties')
-    .update({ price })
-    .eq('property_code', code)
-    .select('name, property_code, price')
-    .maybeSingle();
-
-  if (error || !data) {
-    await sendMessage(chatId, 'لم يتم العثور على العقار بالكود المحدد.');
-    return;
-  }
-
-  await sendMessage(
-    chatId,
-    `تم تحديث السعر: ${data.name} (${data.property_code}) -> ${formatNumber(data.price)} جنيه`
-  );
 };
 
 const handleSearchCommand = async (chatId, query) => {
@@ -241,7 +186,7 @@ const handleSearchCommand = async (chatId, query) => {
 
   await sendMessage(chatId, `تم العثور على ${results.length} نتيجة:`);
   for (const property of results) {
-    await sendMessage(chatId, buildPropertyText(property));
+    await sendProperty(chatId, property);
   }
 };
 
@@ -280,7 +225,6 @@ export default async function handler(req, res) {
   }
 
   const chatId = message.chat?.id;
-  const userId = message.from?.id;
   const text = (message.text || '').trim();
 
   if (!chatId) {
@@ -296,16 +240,7 @@ export default async function handler(req, res) {
   const args = text.split(/\s+/).slice(1);
 
   if (command === '/start' || command === '/help') {
-    await sendMessage(chatId, buildHelp(isAdmin(userId)));
-    return res.status(200).json({ ok: true });
-  }
-
-  if (command === '/admin') {
-    if (!isAdmin(userId)) {
-      await sendMessage(chatId, 'هذا الأمر متاح للإدارة فقط.');
-      return res.status(200).json({ ok: true });
-    }
-    await sendMessage(chatId, buildHelp(true));
+    await sendMessage(chatId, buildHelp());
     return res.status(200).json({ ok: true });
   }
 
@@ -314,49 +249,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
-  if (command === '/id') {
-    await sendMessage(chatId, `رقم المستخدم الخاص بك: ${userId}`);
-    return res.status(200).json({ ok: true });
-  }
-
   if (command === '/code') {
     await handleSearchCommand(chatId, args.join(' '));
-    return res.status(200).json({ ok: true });
-  }
-
-  if (command === '/stats') {
-    if (!isAdmin(userId)) {
-      await sendMessage(chatId, 'هذا الأمر متاح للإدارة فقط.');
-      return res.status(200).json({ ok: true });
-    }
-    await handleStats(chatId);
-    return res.status(200).json({ ok: true });
-  }
-
-  if (command === '/latest') {
-    if (!isAdmin(userId)) {
-      await sendMessage(chatId, 'هذا الأمر متاح للإدارة فقط.');
-      return res.status(200).json({ ok: true });
-    }
-    await handleLatest(chatId);
-    return res.status(200).json({ ok: true });
-  }
-
-  if (command === '/feature') {
-    if (!isAdmin(userId)) {
-      await sendMessage(chatId, 'هذا الأمر متاح للإدارة فقط.');
-      return res.status(200).json({ ok: true });
-    }
-    await handleFeature(chatId, args);
-    return res.status(200).json({ ok: true });
-  }
-
-  if (command === '/price') {
-    if (!isAdmin(userId)) {
-      await sendMessage(chatId, 'هذا الأمر متاح للإدارة فقط.');
-      return res.status(200).json({ ok: true });
-    }
-    await handlePrice(chatId, args);
     return res.status(200).json({ ok: true });
   }
 
@@ -370,10 +264,10 @@ export default async function handler(req, res) {
   if (results.length) {
     await sendMessage(chatId, `تم العثور على ${results.length} نتيجة:`);
     for (const property of results) {
-      await sendMessage(chatId, buildPropertyText(property));
+      await sendProperty(chatId, property);
     }
   } else {
-    await sendMessage(chatId, buildHelp(isAdmin(userId)));
+    await sendMessage(chatId, buildHelp());
   }
 
   return res.status(200).json({ ok: true });
