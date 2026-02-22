@@ -68,6 +68,14 @@ const sendPhoto = async (chatId, photo, caption) => {
   });
 };
 
+const sendTelegramMultipart = async (method, formData) => {
+  const response = await fetch(telegramApiUrl(method), {
+    method: 'POST',
+    body: formData,
+  });
+  return response.json();
+};
+
 const limitCaption = (text, max = 900) => {
   if (!text) return '';
   if (text.length <= max) return text;
@@ -142,16 +150,61 @@ const getImages = (property) => {
     .filter((url) => typeof url === 'string' && url.trim().length > 0);
 };
 
-const sendPhotoSafe = async (chatId, photo, caption) => {
-  const result = await sendPhoto(chatId, photo, caption);
-  if (!result?.ok) {
-    const fallback = caption
-      ? `${caption}\n\nرابط الصورة:\n${photo}`
-      : `رابط الصورة:\n${photo}`;
-    await sendMessage(chatId, fallback);
-    return false;
+const MAX_UPLOAD_BYTES = 9_500_000;
+
+const guessFileName = (url, contentType) => {
+  const extFromType = contentType?.split('/')[1]?.split(';')[0];
+  if (extFromType) return `photo.${extFromType}`;
+  const fromUrl = url.split('?')[0].split('#')[0].split('/').pop();
+  if (fromUrl && fromUrl.includes('.')) return fromUrl;
+  return 'photo.jpg';
+};
+
+const sendPhotoUpload = async (chatId, photoUrl, caption) => {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 9000);
+    const response = await fetch(photoUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HorusBot/1.0)' },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) return { ok: false };
+
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    if (!contentType.startsWith('image/')) return { ok: false };
+
+    const contentLength = Number(response.headers.get('content-length') || 0);
+    if (contentLength && contentLength > MAX_UPLOAD_BYTES) return { ok: false };
+
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength > MAX_UPLOAD_BYTES) return { ok: false };
+
+    const form = new FormData();
+    form.append('chat_id', String(chatId));
+    if (caption) form.append('caption', caption);
+    const filename = guessFileName(photoUrl, contentType);
+    form.append('photo', new Blob([buffer], { type: contentType }), filename);
+
+    return sendTelegramMultipart('sendPhoto', form);
+  } catch {
+    return { ok: false };
   }
-  return true;
+};
+
+const sendPhotoSafe = async (chatId, photo, caption) => {
+  let result = await sendPhotoUpload(chatId, photo, caption);
+  if (result?.ok) return true;
+
+  result = await sendPhoto(chatId, photo, caption);
+  if (result?.ok) return true;
+
+  const fallback = caption
+    ? `${caption}\n\nرابط الصورة:\n${photo}`
+    : `رابط الصورة:\n${photo}`;
+  await sendMessage(chatId, fallback);
+  return false;
 };
 
 const sendProperty = async (chatId, property) => {
