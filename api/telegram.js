@@ -33,8 +33,10 @@ const buildHelp = () => {
     'مرحباً بك في بوت عقارات حورس 👋',
     '',
     'الأوامر المتاحة:',
+    '/latest - أحدث 5 عقارات',
     '/search كلمة - بحث بالاسم أو المدينة أو الكود',
     '/code كود - بحث مباشر بكود العقار',
+    '/area اسم - بحث بالمنطقة',
     '/help - المساعدة',
   ];
 
@@ -269,6 +271,55 @@ const searchProperties = async (query) => {
   return data || [];
 };
 
+const handleLatest = async (chatId) => {
+  const { data } = await supabase
+    .from('properties')
+    .select(
+      'id, property_code, name, city, area_name, price, area, bedrooms, bathrooms, listing_type, property_type, featured, images, created_at'
+    )
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  if (!data || data.length === 0) {
+    await sendMessage(chatId, 'لا توجد عقارات حالياً.');
+    return;
+  }
+
+  await sendMessage(chatId, '🆕 أحدث 5 عقارات:');
+
+  for (const property of data) {
+    await sendProperty(chatId, property);
+  }
+};
+
+const handleAreaSearch = async (chatId, query) => {
+  const raw = (query || '').trim();
+  if (!raw) {
+    await sendMessage(chatId, 'اكتب اسم المنطقة بعد الأمر /area');
+    return;
+  }
+
+  const clean = raw.replace(/[,]/g, ' ').trim().slice(0, 60);
+  const like = `%${clean}%`;
+  const { data } = await supabase
+    .from('properties')
+    .select(
+      'id, property_code, name, city, area_name, price, area, bedrooms, bathrooms, listing_type, property_type, featured, images'
+    )
+    .ilike('area_name', like)
+    .limit(MAX_RESULTS);
+
+  if (!data || data.length === 0) {
+    await sendMessage(chatId, 'لم يتم العثور على نتائج مطابقة للمنطقة.');
+    return;
+  }
+
+  await sendMessage(chatId, `تم العثور على ${data.length} نتيجة:`);
+  for (const property of data) {
+    await sendProperty(chatId, property);
+  }
+};
+
 const handleSearchCommand = async (chatId, query) => {
   if (!query) {
     await sendMessage(chatId, 'اكتب كلمة البحث بعد الأمر /search');
@@ -347,8 +398,18 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
+  if (command === '/latest' || command === '/list') {
+    await handleLatest(chatId);
+    return res.status(200).json({ ok: true });
+  }
+
   if (command === '/code') {
     await handleSearchCommand(chatId, args.join(' '));
+    return res.status(200).json({ ok: true });
+  }
+
+  if (command === '/area') {
+    await handleAreaSearch(chatId, args.join(' '));
     return res.status(200).json({ ok: true });
   }
 
