@@ -68,13 +68,6 @@ const sendPhoto = async (chatId, photo, caption) => {
   });
 };
 
-const sendMediaGroup = async (chatId, media) => {
-  return sendTelegram('sendMediaGroup', {
-    chat_id: chatId,
-    media,
-  });
-};
-
 const limitCaption = (text, max = 900) => {
   if (!text) return '';
   if (text.length <= max) return text;
@@ -132,7 +125,10 @@ const coerceImageList = (value) => {
       const parsed = JSON.parse(trimmed);
       if (Array.isArray(parsed)) return parsed;
     } catch {
-      return trimmed.split(',').map((item) => item.trim()).filter(Boolean);
+      return trimmed
+        .split(/[\n,|;]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
     }
   }
   return [];
@@ -146,6 +142,18 @@ const getImages = (property) => {
     .filter((url) => typeof url === 'string' && url.trim().length > 0);
 };
 
+const sendPhotoSafe = async (chatId, photo, caption) => {
+  const result = await sendPhoto(chatId, photo, caption);
+  if (!result?.ok) {
+    const fallback = caption
+      ? `${caption}\n\nرابط الصورة:\n${photo}`
+      : `رابط الصورة:\n${photo}`;
+    await sendMessage(chatId, fallback);
+    return false;
+  }
+  return true;
+};
+
 const sendProperty = async (chatId, property) => {
   const caption = limitCaption(buildPropertyText(property));
   const images = getImages(property).slice(0, 5);
@@ -155,23 +163,10 @@ const sendProperty = async (chatId, property) => {
     return;
   }
 
-  if (images.length === 1) {
-    const result = await sendPhoto(chatId, images[0], caption);
-    if (!result?.ok) {
-      await sendMessage(chatId, `${caption}\n\nروابط الصور:\n${images[0]}`);
-    }
-    return;
-  }
-
-  const media = images.map((url, index) => ({
-    type: 'photo',
-    media: url,
-    ...(index === 0 ? { caption } : {}),
-  }));
-
-  const result = await sendMediaGroup(chatId, media);
-  if (!result?.ok) {
-    await sendMessage(chatId, `${caption}\n\nروابط الصور:\n${images.join('\n')}`);
+  const [first, ...rest] = images;
+  await sendPhotoSafe(chatId, first, caption);
+  for (const url of rest) {
+    await sendPhotoSafe(chatId, url);
   }
 };
 
