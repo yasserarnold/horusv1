@@ -193,17 +193,20 @@ const sendPhotoUpload = async (chatId, photoUrl, caption) => {
   }
 };
 
-const sendPhotoSafe = async (chatId, photo, caption) => {
+const sendPhotoSafe = async (chatId, photo, caption, options = {}) => {
+  const { fallbackToLink = true } = options;
   let result = await sendPhotoUpload(chatId, photo, caption);
   if (result?.ok) return true;
 
   result = await sendPhoto(chatId, photo, caption);
   if (result?.ok) return true;
 
-  const fallback = caption
-    ? `${caption}\n\nرابط الصورة:\n${photo}`
-    : `رابط الصورة:\n${photo}`;
-  await sendMessage(chatId, fallback);
+  if (fallbackToLink) {
+    const fallback = caption
+      ? `${caption}\n\nرابط الصورة:\n${photo}`
+      : `رابط الصورة:\n${photo}`;
+    await sendMessage(chatId, fallback);
+  }
   return false;
 };
 
@@ -216,10 +219,19 @@ const sendProperty = async (chatId, property) => {
     return;
   }
 
-  const [first, ...rest] = images;
-  await sendPhotoSafe(chatId, first, caption);
-  for (const url of rest) {
-    await sendPhotoSafe(chatId, url);
+  await sendMessage(chatId, caption);
+
+  let failed = 0;
+  for (const url of images) {
+    const ok = await sendPhotoSafe(chatId, url, undefined, { fallbackToLink: false });
+    if (!ok) failed += 1;
+  }
+
+  if (failed > 0) {
+    await sendMessage(
+      chatId,
+      `تعذر إرسال ${failed} صورة. تأكد أن الروابط عامة وبحجم أقل من 10MB.`
+    );
   }
 };
 
