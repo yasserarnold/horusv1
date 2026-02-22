@@ -103,9 +103,47 @@ const buildPropertyText = (property) => {
   return lines.join('\n');
 };
 
+const normalizeImageUrl = (url) => {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+
+  if (trimmed.startsWith('/') && PUBLIC_SITE_URL) {
+    return `${PUBLIC_SITE_URL.replace(/\/$/, '')}${trimmed}`;
+  }
+
+  if (SUPABASE_URL) {
+    const base = SUPABASE_URL.replace(/\/$/, '');
+    const path = trimmed.replace(/^\/+/, '');
+    return `${base}/storage/v1/object/public/${path}`;
+  }
+
+  return trimmed;
+};
+
+const coerceImageList = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      return trimmed.split(',').map((item) => item.trim()).filter(Boolean);
+    }
+  }
+  return [];
+};
+
 const getImages = (property) => {
-  if (!property || !Array.isArray(property.images)) return [];
-  return property.images.filter((url) => typeof url === 'string' && url.trim().length > 0);
+  if (!property) return [];
+  const list = coerceImageList(property.images);
+  return list
+    .map(normalizeImageUrl)
+    .filter((url) => typeof url === 'string' && url.trim().length > 0);
 };
 
 const sendProperty = async (chatId, property) => {
@@ -120,7 +158,7 @@ const sendProperty = async (chatId, property) => {
   if (images.length === 1) {
     const result = await sendPhoto(chatId, images[0], caption);
     if (!result?.ok) {
-      await sendMessage(chatId, caption);
+      await sendMessage(chatId, `${caption}\n\nروابط الصور:\n${images[0]}`);
     }
     return;
   }
@@ -133,7 +171,7 @@ const sendProperty = async (chatId, property) => {
 
   const result = await sendMediaGroup(chatId, media);
   if (!result?.ok) {
-    await sendMessage(chatId, caption);
+    await sendMessage(chatId, `${caption}\n\nروابط الصور:\n${images.join('\n')}`);
   }
 };
 
