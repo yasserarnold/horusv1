@@ -7,8 +7,19 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
 const PUBLIC_SITE_URL = process.env.PUBLIC_SITE_URL || process.env.SITE_URL || '';
+const KNOWLEDGE_BASE_URL =
+  process.env.TELEGRAM_KB_URL ||
+  process.env.KNOWLEDGE_BASE_URL ||
+  '';
+const KNOWLEDGE_BASE_TEXT =
+  process.env.TELEGRAM_KB_TEXT ||
+  process.env.KNOWLEDGE_BASE_TEXT ||
+  '';
 
 const MAX_RESULTS = 5;
+const KNOWLEDGE_BASE_CACHE_TTL_MS = 5 * 60 * 1000;
+const KNOWLEDGE_BASE_TIMEOUT_MS = 6_000;
+const KNOWLEDGE_BASE_MAX_BYTES = 200_000;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -82,6 +93,305 @@ const limitCaption = (text, max = 900) => {
   if (!text) return '';
   if (text.length <= max) return text;
   return `${text.slice(0, max - 3)}...`;
+};
+
+const limitMessage = (text, max = 3500) => {
+  if (!text) return '';
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 3)}...`;
+};
+
+const normalizeText = (value) => {
+  if (!value) return '';
+  return String(value)
+    .toLowerCase()
+    .replace(/[\u064B-\u065F\u0610-\u061A\u06D6-\u06ED]/g, '')
+    .replace(/\u0640/g, '')
+    .replace(/[^\w\u0600-\u06FF]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const tokenize = (value) => {
+  const normalized = normalizeText(value);
+  if (!normalized) return [];
+  return normalized.split(' ').filter(Boolean);
+};
+
+const uniqueTokens = (tokens) => Array.from(new Set(tokens));
+
+const toStringSafe = (value) => {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+};
+
+const coerceStringArray = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.map(toStringSafe).filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(/[\n,|;]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+};
+
+const coerceKnowledgeEntry = (item) => {
+  if (!item) return null;
+  if (typeof item === 'string') {
+    return {
+      question: '',
+      answer: item.trim(),
+      keywords: [],
+    };
+  }
+  if (typeof item !== 'object') return null;
+
+  const question = toStringSafe(
+    item.question ||
+      item.q ||
+      item.title ||
+      item.prompt ||
+      item.name ||
+      item.heading ||
+      item.ask
+  );
+  const answer = toStringSafe(
+    item.answer ||
+      item.a ||
+      item.response ||
+      item.content ||
+      item.text ||
+      item.body ||
+      item.value ||
+      item.details
+  );
+  const keywords = coerceStringArray(
+    item.keywords ||
+      item.tags ||
+      item.synonyms ||
+      item.topics ||
+      item.keywords_ar
+  );
+
+  if (!question && !answer && keywords.length === 0) return null;
+
+  return {
+    question,
+    answer: answer || question,
+    keywords,
+  };
+};
+
+const extractKnowledgeEntries = (payload) => {
+  if (!payload) {
+    return { entries: [], fallbackText: '' };
+  }
+
+  if (typeof payload === 'string') {
+    return { entries: [], fallbackText: payload };
+  }
+
+  if (Array.isArray(payload)) {
+    return {
+      entries: payload.map(coerceKnowledgeEntry).filter(Boolean),
+      fallbackText: '',
+    };
+  }
+
+  if (typeof payload === 'object') {
+    const containers = [
+      payload.entries,
+      payload.items,
+      payload.faq,
+      payload.faqs,
+      payload.questions,
+      payload.data,
+      payload.records,
+      payload.kb,
+      payload.knowledge,
+      payload.list,
+      payload.results,
+    ];
+    const container = containers.find(Array.isArray);
+    if (container) {
+      return {
+        entries: container.map(coerceKnowledgeEntry).filter(Boolean),
+        fallbackText: toStringSafe(payload.text || payload.fallback || payload.default || ''),
+      };
+    }
+
+    const entry = coerceKnowledgeEntry(payload);
+    if (entry) {
+      return { entries: [entry], fallbackText: '' };
+    }
+
+    return {
+      entries: [],
+      fallbackText: toStringSafe(payload.text || payload.fallback || payload.default || payload.message || ''),
+    };
+  }
+
+  return { entries: [], fallbackText: '' };
+};
+
+const parseKnowledgeBaseString = (content) => {
+  const trimmed = toStringSafe(content);
+  if (!trimmed) return { entries: [], fallbackText: '' };
+
+  const looksLikeJson =
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'));
+
+  if (looksLikeJson) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      return extractKnowledgeEntries(parsed);
+    } catch {
+      return { entries: [], fallbackText: trimmed };
+    }
+  }
+
+  return { entries: [], fallbackText: trimmed };
+};
+
+const mergeKnowledgeBase = (base, extra) => {
+  return {
+    entries: [...(base?.entries || []), ...(extra?.entries || [])],
+    fallbackText: base?.fallbackText || extra?.fallbackText || '',
+  };
+};
+
+const fetchKnowledgeBaseUrl = async (url) => {
+  if (!url) return { entries: [], fallbackText: '' };
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), KNOWLEDGE_BASE_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HorusBot/1.0)' },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) return { entries: [], fallbackText: '' };
+
+    const contentLength = Number(response.headers.get('content-length') || 0);
+    if (contentLength && contentLength > KNOWLEDGE_BASE_MAX_BYTES) {
+      return { entries: [], fallbackText: '' };
+    }
+
+    const text = await response.text();
+    if (text.length > KNOWLEDGE_BASE_MAX_BYTES) {
+      return { entries: [], fallbackText: '' };
+    }
+
+    return parseKnowledgeBaseString(text);
+  } catch {
+    clearTimeout(timeout);
+    return { entries: [], fallbackText: '' };
+  }
+};
+
+let knowledgeBaseCache = null;
+let knowledgeBaseCacheAt = 0;
+
+const loadKnowledgeBase = async () => {
+  if (!KNOWLEDGE_BASE_URL && !KNOWLEDGE_BASE_TEXT) return null;
+
+  const now = Date.now();
+  if (
+    knowledgeBaseCache &&
+    now - knowledgeBaseCacheAt < KNOWLEDGE_BASE_CACHE_TTL_MS
+  ) {
+    return knowledgeBaseCache;
+  }
+
+  let combined = { entries: [], fallbackText: '' };
+
+  if (KNOWLEDGE_BASE_TEXT) {
+    combined = mergeKnowledgeBase(combined, parseKnowledgeBaseString(KNOWLEDGE_BASE_TEXT));
+  }
+
+  if (KNOWLEDGE_BASE_URL) {
+    const fromUrl = await fetchKnowledgeBaseUrl(KNOWLEDGE_BASE_URL);
+    combined = mergeKnowledgeBase(combined, fromUrl);
+  }
+
+  combined.entries = (combined.entries || []).filter(
+    (entry) => entry && (entry.answer || entry.question || entry.keywords?.length)
+  );
+
+  knowledgeBaseCache = combined;
+  knowledgeBaseCacheAt = now;
+  return combined;
+};
+
+const findKnowledgeAnswer = (query, knowledgeBase) => {
+  if (!knowledgeBase) return '';
+
+  const normalizedQuery = normalizeText(query);
+  if (!normalizedQuery) return '';
+
+  const queryTokens = tokenize(normalizedQuery);
+  let bestEntry = null;
+  let bestScore = 0;
+
+  for (const entry of knowledgeBase.entries || []) {
+    const question = entry.question || '';
+    const answer = entry.answer || '';
+    const keywords = entry.keywords || [];
+
+    const normalizedQuestion = normalizeText(question);
+    const normalizedAnswer = normalizeText(answer);
+
+    if (
+      normalizedQuestion &&
+      (normalizedQuestion.includes(normalizedQuery) ||
+        normalizedQuery.includes(normalizedQuestion))
+    ) {
+      return limitMessage(answer || question);
+    }
+
+    if (
+      normalizedAnswer &&
+      (normalizedAnswer.includes(normalizedQuery) ||
+        normalizedQuery.includes(normalizedAnswer))
+    ) {
+      return limitMessage(answer);
+    }
+
+    const entryTokens = uniqueTokens([
+      ...tokenize(question),
+      ...keywords.flatMap((keyword) => tokenize(keyword)),
+    ]);
+
+    if (!entryTokens.length) continue;
+
+    let score = 0;
+    for (const token of queryTokens) {
+      if (entryTokens.includes(token)) score += 1;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestEntry = entry;
+    }
+  }
+
+  const minScore = queryTokens.length >= 3 ? 2 : 1;
+  if (bestEntry && bestScore >= minScore) {
+    return limitMessage(bestEntry.answer || bestEntry.question);
+  }
+
+  if (knowledgeBase.fallbackText) {
+    return limitMessage(knowledgeBase.fallbackText);
+  }
+
+  return '';
 };
 
 const buildPropertyUrl = (property) => {
@@ -443,7 +753,13 @@ export default async function handler(req, res) {
       await sendProperty(chatId, property);
     }
   } else {
-    await sendMessage(chatId, buildHelp());
+    const knowledgeBase = await loadKnowledgeBase();
+    const knowledgeAnswer = findKnowledgeAnswer(text, knowledgeBase);
+    if (knowledgeAnswer) {
+      await sendMessage(chatId, knowledgeAnswer);
+    } else {
+      await sendMessage(chatId, buildHelp());
+    }
   }
 
   return res.status(200).json({ ok: true });
