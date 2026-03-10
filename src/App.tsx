@@ -29,6 +29,47 @@ function HomePage() {
     bedrooms: "",
   });
 
+  const isLikelyUuid = (value: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    );
+
+  const openPropertyFromUrl = async (data: Property[]) => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const propertyId = params.get("property");
+    if (!propertyId) return;
+
+    const match = data.find((property) => property.id === propertyId);
+    if (match) {
+      setSelectedProperty(match);
+      return;
+    }
+
+    if (!isLikelyUuid(propertyId)) {
+      console.warn("Invalid property id in URL:", propertyId);
+      return;
+    }
+
+    try {
+      const { data: property, error } = await supabase
+        .from("properties")
+        .select("*")
+        .eq("id", propertyId)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (property) {
+        setSelectedProperty(property);
+      } else {
+        console.warn("Property not found for id:", propertyId);
+      }
+    } catch (error) {
+      console.error("Error loading shared property:", error);
+    }
+  };
+
   useEffect(() => {
     loadProperties();
   }, []);
@@ -44,6 +85,7 @@ function HomePage() {
       if (error) throw error;
       setProperties(data || []);
       setFilteredProperties(data || []);
+      void openPropertyFromUrl(data || []);
     } catch (error) {
       console.error("Error loading properties:", error);
     } finally {

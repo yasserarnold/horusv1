@@ -84,6 +84,22 @@ const limitCaption = (text, max = 900) => {
   return `${text.slice(0, max - 3)}...`;
 };
 
+const buildPropertyUrl = (property) => {
+  if (!PUBLIC_SITE_URL) return '';
+
+  try {
+    const url = new URL(PUBLIC_SITE_URL);
+    if (property?.id) {
+      url.searchParams.set('property', property.id);
+    }
+    return url.toString();
+  } catch {
+    if (!property?.id) return PUBLIC_SITE_URL;
+    const separator = PUBLIC_SITE_URL.includes('?') ? '&' : '?';
+    return `${PUBLIC_SITE_URL}${separator}property=${property.id}`;
+  }
+};
+
 const buildPropertyText = (property) => {
   const lines = [
     `🏠 ${property.name}`,
@@ -99,8 +115,9 @@ const buildPropertyText = (property) => {
   if (property.listing_type) lines.push(`🔖 الحالة: ${property.listing_type}`);
   if (property.featured) lines.push('⭐ عقار مميز');
 
-  if (PUBLIC_SITE_URL) {
-    lines.push(`🌐 ${PUBLIC_SITE_URL}`);
+  const propertyUrl = buildPropertyUrl(property);
+  if (propertyUrl) {
+    lines.push(`🌐 ${propertyUrl}`);
   }
 
   return lines.join('\n');
