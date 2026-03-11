@@ -3,8 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const PUBLIC_SITE_URL = process.env.PUBLIC_SITE_URL || process.env.SITE_URL || '';
+const WEBHOOK_URL =
+  process.env.KNOWLEDGE_BASE_WEBHOOK_URL ||
+  process.env.KB_WEBHOOK_URL ||
+  '';
+const WEBHOOK_HEADERS_RAW =
+  process.env.KNOWLEDGE_BASE_WEBHOOK_HEADERS ||
+  process.env.KB_WEBHOOK_HEADERS ||
+  '';
 
 const PAGE_SIZE = 500;
+const WEBHOOK_TIMEOUT_MS = 6_000;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -133,6 +142,42 @@ const fetchAllProperties = async () => {
   return all;
 };
 
+const parseWebhookHeaders = () => {
+  if (!WEBHOOK_HEADERS_RAW) return {};
+  try {
+    const parsed = JSON.parse(WEBHOOK_HEADERS_RAW);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch {
+    return {};
+  }
+  return {};
+};
+
+const sendWebhook = async (payload) => {
+  if (!WEBHOOK_URL) return;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
+  try {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...parseWebhookHeaders(),
+    };
+    await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    console.error('Webhook error:', error);
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -145,15 +190,21 @@ export default async function handler(req, res) {
   try {
     const properties = await fetchAllProperties();
     const entries = properties.map(buildPropertyEntry);
+    const payload = {
+      generated_at: new Date().toISOString(),
+      count: entries.length,
+      entries,
+    };
+
+    // إرسال البيانات المجمّعة إلى Webhook إذا تم ضبطه
+    if (WEBHOOK_URL && req.query.webhook !== '0') {
+      await sendWebhook(payload);
+    }
 
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
 
-    return res.status(200).json({
-      generated_at: new Date().toISOString(),
-      count: entries.length,
-      entries,
-    });
+    return res.status(200).json(payload);
   } catch (error) {
     console.error('Knowledge base error:', error);
     return res.status(500).json({ error: 'Internal server error' });
