@@ -21,8 +21,12 @@ export const LoginModal = ({ onClose }: LoginModalProps) => {
     try {
       await signIn(email, password);
       onClose();
-    } catch {
-      setError('خطأ في البريد الإلكتروني أو كلمة المرور');
+    } catch (error) {
+      if (error instanceof Error && error.message === 'not_authorized') {
+        setError('هذا الحساب لا يملك صلاحية الإدارة');
+      } else {
+        setError('خطأ في البريد الإلكتروني أو كلمة المرور');
+      }
     } finally {
       setLoading(false);
     }
@@ -88,7 +92,7 @@ export const LoginModal = ({ onClose }: LoginModalProps) => {
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800 font-medium mb-2">📝 ملاحظة للمطورين:</p>
           <p className="text-xs text-blue-700">
-            لإنشاء حساب مدير جديد، استخدم Supabase Dashboard أو أداة CLI لإنشاء مستخدم جديد في نظام المصادقة.
+            بعد إنشاء المستخدم في Supabase Auth، أضف معرّفه أيضاً إلى جدول <span className="font-mono">admin_users</span> لمنحه صلاحية الإدارة.
           </p>
         </div>
       </div>

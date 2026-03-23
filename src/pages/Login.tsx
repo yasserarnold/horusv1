@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export const Login = () => {
-  const { user, signIn, loading: authLoading } = useAuth();
+  const { user, isAdmin, signIn, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -11,10 +11,10 @@ export const Login = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && user && isAdmin) {
       navigate("/admin");
     }
-  }, [authLoading, user, navigate]);
+  }, [authLoading, isAdmin, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,8 +24,12 @@ export const Login = () => {
     try {
       await signIn(email, password);
       navigate("/admin");
-    } catch {
-      setError("خطأ في البريد الإلكتروني أو كلمة المرور");
+    } catch (error) {
+      if (error instanceof Error && error.message === "not_authorized") {
+        setError("هذا الحساب لا يملك صلاحية الإدارة");
+      } else {
+        setError("خطأ في البريد الإلكتروني أو كلمة المرور");
+      }
     } finally {
       setLoading(false);
     }
@@ -42,7 +46,7 @@ export const Login = () => {
     );
   }
 
-  if (user) {
+  if (user && isAdmin) {
     return null;
   }
 

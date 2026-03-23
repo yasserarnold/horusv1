@@ -10,7 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getAreasByCityName } from '../lib/citiesAreas';
 
 export const Admin = () => {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, isAdmin, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [properties, setProperties] = useState<Property[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
@@ -51,10 +51,10 @@ export const Admin = () => {
   }, [filters, properties]);
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && (!user || !isAdmin)) {
       navigate('/login');
     }
-  }, [authLoading, user, navigate]);
+  }, [authLoading, isAdmin, user, navigate]);
 
   useEffect(() => {
     if (user) {
@@ -135,6 +135,11 @@ export const Admin = () => {
 
   const shareToFacebook = (property: Property) => {
     const url = getPublicPropertyUrl(property.id);
+    if (!url) {
+      alert('تعذر إنشاء رابط مشاركة عام. اضبط VITE_PUBLIC_SITE_URL على رابط الموقع المنشور مثل https://example.com');
+      return;
+    }
+
     const text = `${property.name}\n${property.city} - ${property.area_name}\n${property.price.toLocaleString('ar-EG')} جنيه\n${property.description.substring(0, 100)}...`;
     const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`;
     window.open(facebookUrl, '_blank', 'width=600,height=400');
@@ -142,6 +147,11 @@ export const Admin = () => {
 
   const shareToWhatsApp = (property: Property) => {
     const url = getPublicPropertyUrl(property.id);
+    if (!url) {
+      alert('تعذر إنشاء رابط مشاركة عام. اضبط VITE_PUBLIC_SITE_URL على رابط الموقع المنشور مثل https://example.com');
+      return;
+    }
+
     const text = `🏠 *${property.name}*\n\n📍 ${property.city} - ${property.area_name}\n💰 ${property.price.toLocaleString('ar-EG')} جنيه\n📏 ${property.area} م²\n🛏️ ${property.bedrooms} غرف نوم\n🚿 ${property.bathrooms} حمامات\n\n${property.description}\n\nللمزيد من التفاصيل: ${url}`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
     window.open(whatsappUrl, '_blank');
@@ -167,7 +177,7 @@ export const Admin = () => {
     );
   }
 
-  if (!user) {
+  if (!user || !isAdmin) {
     return null;
   }
 

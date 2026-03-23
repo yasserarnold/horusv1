@@ -29,11 +29,13 @@ const buildPropertyUrl = (propertyId) => {
   if (!PUBLIC_SITE_URL || !propertyId) return '';
   try {
     const url = new URL(PUBLIC_SITE_URL);
-    url.searchParams.set('property', propertyId);
+    const basePath = url.pathname.replace(/\/$/, '');
+    url.pathname = `${basePath}/property/${encodeURIComponent(propertyId)}`;
+    url.search = '';
+    url.hash = '';
     return url.toString();
   } catch {
-    const separator = PUBLIC_SITE_URL.includes('?') ? '&' : '?';
-    return `${PUBLIC_SITE_URL}${separator}property=${propertyId}`;
+    return `${PUBLIC_SITE_URL.replace(/\/$/, '')}/property/${encodeURIComponent(propertyId)}`;
   }
 };
 

@@ -155,6 +155,11 @@ export const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
 
   const shareToFacebook = (property: Property) => {
     const url = getPublicPropertyUrl(property.id);
+    if (!url) {
+      alert('تعذر إنشاء رابط مشاركة عام. اضبط VITE_PUBLIC_SITE_URL على رابط الموقع المنشور مثل https://example.com');
+      return;
+    }
+
     const firstImage = property.images && property.images.length > 0 ? property.images[0] : '';
     const imageLine = firstImage
       ? `\n${USE_EMOJI_IN_SHARING ? `${EMOJI.camera} ` : ''}الصورة: ${firstImage}`
@@ -171,6 +176,11 @@ export const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
 
   const shareToWhatsApp = (property: Property) => {
     const url = getPublicPropertyUrl(property.id);
+    if (!url) {
+      alert('تعذر إنشاء رابط مشاركة عام. اضبط VITE_PUBLIC_SITE_URL على رابط الموقع المنشور مثل https://example.com');
+      return;
+    }
+
     const firstImage = property.images && property.images.length > 0 ? property.images[0] : '';
     const imageLine = firstImage ? `\n${USE_EMOJI_IN_SHARING ? `${EMOJI.camera} ` : ''}صورة: ${firstImage}\n` : '';
     const title = USE_EMOJI_IN_SHARING ? `${EMOJI.house} *${property.name}*` : `*${property.name}*`;

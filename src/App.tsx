@@ -1,22 +1,31 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
-import { Routes, Route } from "react-router-dom";
-import { supabase, Property } from "./lib/supabase";
+import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import {
+  Property,
+  fetchPublicProperties,
+  getPublicPropertyPath,
+} from "./lib/supabase";
 import { AuthProvider } from "./contexts/AuthContext";
 import { Navbar } from "./components/Navbar";
 import { SearchFilters } from "./components/SearchFilters";
 import { PropertyCard } from "./components/PropertyCard";
-import { PropertyDetails } from "./components/PropertyDetails";
+import { SiteFooter } from "./components/SiteFooter";
 import { Admin } from "./pages/Admin";
 import { Login } from "./pages/Login";
+import { PropertyPage } from "./pages/PropertyPage";
+
+const isLikelyUuid = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
 
 function HomePage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [properties, setProperties] = useState<Property[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedProperty, setSelectedProperty] = useState<Property | null>(
-    null,
-  );
   const [filters, setFilters] = useState({
     propertyCode: "",
     city: "",
@@ -29,69 +38,34 @@ function HomePage() {
     bedrooms: "",
   });
 
-  const isLikelyUuid = (value: string) =>
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      value,
-    );
-
-  const openPropertyFromUrl = async (data: Property[]) => {
-    if (typeof window === "undefined") return;
-
-    const params = new URLSearchParams(window.location.search);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
     const propertyId = params.get("property");
     if (!propertyId) return;
-
-    const match = data.find((property) => property.id === propertyId);
-    if (match) {
-      setSelectedProperty(match);
-      return;
-    }
 
     if (!isLikelyUuid(propertyId)) {
       console.warn("Invalid property id in URL:", propertyId);
       return;
     }
 
+    navigate(getPublicPropertyPath(propertyId), { replace: true });
+  }, [location.search, navigate]);
+
+  const loadProperties = useCallback(async () => {
     try {
-      const { data: property, error } = await supabase
-        .from("properties")
-        .select("*")
-        .eq("id", propertyId)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (property) {
-        setSelectedProperty(property);
-      } else {
-        console.warn("Property not found for id:", propertyId);
-      }
-    } catch (error) {
-      console.error("Error loading shared property:", error);
-    }
-  };
-
-  useEffect(() => {
-    loadProperties();
-  }, []);
-
-  const loadProperties = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("properties")
-        .select("*")
-        .order("featured", { ascending: false })
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setProperties(data || []);
-      setFilteredProperties(data || []);
-      void openPropertyFromUrl(data || []);
+      const data = await fetchPublicProperties();
+      setProperties(data);
+      setFilteredProperties(data);
     } catch (error) {
       console.error("Error loading properties:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void loadProperties();
+  }, [loadProperties]);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -251,7 +225,7 @@ function HomePage() {
                     <PropertyCard
                       key={property.id}
                       property={property}
-                      onClick={() => setSelectedProperty(property)}
+                      onClick={() => navigate(getPublicPropertyPath(property.id))}
                     />
                   ))}
                 </div>
@@ -303,7 +277,7 @@ function HomePage() {
                     <PropertyCard
                       key={property.id}
                       property={property}
-                      onClick={() => setSelectedProperty(property)}
+                      onClick={() => navigate(getPublicPropertyPath(property.id))}
                     />
                   ))}
                 </div>
@@ -324,7 +298,7 @@ function HomePage() {
                     <PropertyCard
                       key={property.id}
                       property={property}
-                      onClick={() => setSelectedProperty(property)}
+                      onClick={() => navigate(getPublicPropertyPath(property.id))}
                     />
                   ))}
                 </div>
@@ -347,7 +321,7 @@ function HomePage() {
                     <PropertyCard
                       key={property.id}
                       property={property}
-                      onClick={() => setSelectedProperty(property)}
+                      onClick={() => navigate(getPublicPropertyPath(property.id))}
                     />
                   ))}
                 </div>
@@ -368,54 +342,7 @@ function HomePage() {
         )}
       </div>
 
-      <footer className="bg-gradient-to-r from-slate-800 to-slate-900 text-white py-12 mt-20">
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <h3 className="text-2xl font-bold mb-2">عقارات حورس</h3>
-            <p className="text-slate-300 mb-4">منصتك الموثوقة للعقارات</p>
-            <div className="flex justify-center gap-4 mb-6 flex-wrap">
-              <a
-                href="https://wa.me/201002100785"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 rounded-lg transition-colors font-medium shadow-lg hover:shadow-xl"
-              >
-                <span>💬</span>
-                <span>تواصل معنا عبر واتساب</span>
-              </a>
-              <a
-                href="https://t.me/horusgroupbot"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors font-medium shadow-lg hover:shadow-xl"
-              >
-                <span>✈️</span>
-                <span>تواصل عبر البوت</span>
-              </a>
-              <a
-                href="tel:00201002100785"
-                className="flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 rounded-lg transition-colors font-medium shadow-lg hover:shadow-xl"
-              >
-                <span>📞</span>
-                <span>اتصل بنا: 201002100785</span>
-              </a>
-            </div>
-            <div className="flex justify-center gap-8 mb-6 text-sm text-slate-400">
-              <span>📞 خدمة العملاء</span>
-              <span>📧 البريد الإلكتروني</span>
-              <span>📍 المواقع</span>
-            </div>
-            <p className="text-slate-400 text-sm">جميع الحقوق محفوظة © 2025</p>
-          </div>
-        </div>
-      </footer>
-
-      {selectedProperty && (
-        <PropertyDetails
-          property={selectedProperty}
-          onClose={() => setSelectedProperty(null)}
-        />
-      )}
+      <SiteFooter />
     </div>
   );
 }
@@ -424,6 +351,7 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
+      <Route path="/property/:propertyId" element={<PropertyPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/admin" element={<Admin />} />
     </Routes>

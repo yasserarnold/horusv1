@@ -16,6 +16,7 @@ import {
 
 export const CitiesAreasManagement = () => {
   const [cities, setCities] = useState<City[]>([]);
+  const [areaCounts, setAreaCounts] = useState<Record<string, number>>({});
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
   const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,8 +48,13 @@ export const CitiesAreasManagement = () => {
     try {
       const citiesData = await getCities();
       setCities(citiesData);
+      const counts = await Promise.all(
+        citiesData.map(async (city) => [city.id, (await getAreasByCity(city.id)).length] as const)
+      );
+      setAreaCounts(Object.fromEntries(counts));
     } catch (error) {
       console.error('Error loading cities:', error);
+      setAreaCounts({});
       alert('حدث خطأ أثناء جلب المدن');
     } finally {
       setLoading(false);
@@ -74,10 +80,10 @@ export const CitiesAreasManagement = () => {
     try {
       const newCity = await addCity(cityName.trim());
       if (newCity) {
+        clearCache();
         await loadCities();
         setCityName('');
         setShowCityForm(false);
-        clearCache();
         alert('تم إضافة المدينة بنجاح');
       }
     } catch (error) {
@@ -94,11 +100,11 @@ export const CitiesAreasManagement = () => {
     try {
       const updated = await updateCity(editingCity.id, cityName.trim());
       if (updated) {
+        clearCache();
         await loadCities();
         setCityName('');
         setEditingCity(null);
         setShowCityForm(false);
-        clearCache();
         alert('تم تحديث المدينة بنجاح');
       }
     } catch (error) {
@@ -115,11 +121,11 @@ export const CitiesAreasManagement = () => {
     try {
       const success = await deleteCity(city.id);
       if (success) {
+        clearCache();
         await loadCities();
         if (selectedCity?.id === city.id) {
           setSelectedCity(null);
         }
-        clearCache();
         alert('تم حذف المدينة بنجاح');
       }
     } catch (error) {
@@ -142,10 +148,11 @@ export const CitiesAreasManagement = () => {
     try {
       const newArea = await addArea(selectedCity.id, areaName.trim());
       if (newArea) {
+        clearCache();
+        await loadCities();
         await loadAreas(selectedCity.id);
         setAreaName('');
         setShowAreaForm(false);
-        clearCache();
         alert('تم إضافة المنطقة بنجاح');
       }
     } catch (error) {
@@ -162,13 +169,14 @@ export const CitiesAreasManagement = () => {
     try {
       const updated = await updateArea(editingArea.id, areaName.trim());
       if (updated) {
+        clearCache();
+        await loadCities();
         if (selectedCity) {
           await loadAreas(selectedCity.id);
         }
         setAreaName('');
         setEditingArea(null);
         setShowAreaForm(false);
-        clearCache();
         alert('تم تحديث المنطقة بنجاح');
       }
     } catch (error) {
@@ -185,10 +193,11 @@ export const CitiesAreasManagement = () => {
     try {
       const success = await deleteArea(area.id);
       if (success) {
+        clearCache();
+        await loadCities();
         if (selectedCity) {
           await loadAreas(selectedCity.id);
         }
-        clearCache();
         alert('تم حذف المنطقة بنجاح');
       }
     } catch (error) {
@@ -270,7 +279,7 @@ export const CitiesAreasManagement = () => {
                 <div className="flex-1">
                   <h3 className="text-lg font-bold text-slate-900 mb-1">{city.name}</h3>
                   <p className="text-sm text-slate-600">
-                    {areas.length} منطقة
+                    {areaCounts[city.id] ?? 0} منطقة
                   </p>
                 </div>
                 <div className="flex gap-2">

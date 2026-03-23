@@ -1,9 +1,10 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
+import { checkIsAdmin, supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
+  isAdmin: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -22,35 +23,89 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const syncSession = async (nextUser: User | null) => {
+      if (!isMounted) return;
+
+      setUser(nextUser);
+
+      if (!nextUser) {
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const admin = await checkIsAdmin(nextUser.email);
+        if (!isMounted) return;
+        setIsAdmin(admin);
+      } catch (error) {
+        console.error('Error checking admin access:', error);
+        if (!isMounted) return;
+        setIsAdmin(false);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
+      void syncSession(session?.user ?? null);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      (async () => {
-        setUser(session?.user ?? null);
-      })();
+      setLoading(true);
+      void syncSession(session?.user ?? null);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    if (error) {
+      setLoading(false);
+      throw error;
+    }
+
+    try {
+      const admin = await checkIsAdmin(email);
+      if (!admin) {
+        await supabase.auth.signOut();
+        throw new Error('not_authorized');
+      }
+
+      setIsAdmin(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const signOut = async () => {
+    setLoading(true);
     const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    if (error) {
+      setLoading(false);
+      throw error;
+    }
+
+    setUser(null);
+    setIsAdmin(false);
+    setLoading(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, isAdmin, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

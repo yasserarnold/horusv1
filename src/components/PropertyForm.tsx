@@ -10,7 +10,6 @@ interface PropertyFormProps {
 
 export const PropertyForm = ({ property, onClose }: PropertyFormProps) => {
   const [loading, setLoading] = useState(false);
-  const [nextCode, setNextCode] = useState('');
   const [formData, setFormData] = useState({
     property_code: '',
     name: '',
@@ -64,16 +63,6 @@ export const PropertyForm = ({ property, onClose }: PropertyFormProps) => {
   }, [formData.city]);
 
   useEffect(() => {
-    const fetchNextCode = async () => {
-      if (!property) {
-        const { data, error } = await supabase.rpc('generate_next_property_code');
-        if (!error && data) {
-          setNextCode(data);
-          setFormData(prev => ({ ...prev, property_code: data }));
-        }
-      }
-    };
-
     if (property) {
       setFormData({
         property_code: property.property_code,
@@ -98,8 +87,6 @@ export const PropertyForm = ({ property, onClose }: PropertyFormProps) => {
         admin_notes: property.admin_notes || ''
       });
       setImages(property.images || []);
-    } else {
-      fetchNextCode();
     }
   }, [property]);
 
@@ -128,7 +115,6 @@ export const PropertyForm = ({ property, onClose }: PropertyFormProps) => {
 
     try {
       const propertyData = {
-        property_code: formData.property_code,
         name: formData.name,
         description: formData.description,
         property_type: formData.property_type,
@@ -149,6 +135,9 @@ export const PropertyForm = ({ property, onClose }: PropertyFormProps) => {
         owner_phone: formData.owner_phone || null,
         original_price: formData.original_price ? parseFloat(formData.original_price) : null,
         admin_notes: formData.admin_notes || null,
+        ...(formData.property_code.trim()
+          ? { property_code: formData.property_code.trim() }
+          : {}),
         updated_at: new Date().toISOString()
       };
 
@@ -199,14 +188,12 @@ export const PropertyForm = ({ property, onClose }: PropertyFormProps) => {
               type="text"
               name="property_code"
               value={formData.property_code}
-              onChange={handleChange}
-              required
-              readOnly={!!property}
+              readOnly
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-slate-50 font-mono font-bold text-lg text-amber-700"
               placeholder="Horus001"
             />
-            {!property && nextCode && (
-              <p className="text-xs text-slate-600 mt-1">سيتم إنشاء الكود تلقائياً: {nextCode}</p>
+            {!property && (
+              <p className="text-xs text-slate-600 mt-1">سيتم إنشاء الكود تلقائياً عند الحفظ.</p>
             )}
             {property && (
               <p className="text-xs text-slate-600 mt-1">لا يمكن تعديل كود العقار بعد الإنشاء</p>

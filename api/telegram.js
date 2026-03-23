@@ -400,13 +400,15 @@ const buildPropertyUrl = (property) => {
   try {
     const url = new URL(PUBLIC_SITE_URL);
     if (property?.id) {
-      url.searchParams.set('property', property.id);
+      const basePath = url.pathname.replace(/\/$/, '');
+      url.pathname = `${basePath}/property/${encodeURIComponent(property.id)}`;
+      url.search = '';
+      url.hash = '';
     }
     return url.toString();
   } catch {
     if (!property?.id) return PUBLIC_SITE_URL;
-    const separator = PUBLIC_SITE_URL.includes('?') ? '&' : '?';
-    return `${PUBLIC_SITE_URL}${separator}property=${property.id}`;
+    return `${PUBLIC_SITE_URL.replace(/\/$/, '')}/property/${encodeURIComponent(property.id)}`;
   }
 };
 
@@ -675,11 +677,13 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: 'Missing environment variables.' });
   }
 
-  if (TELEGRAM_WEBHOOK_SECRET) {
-    const secret = req.headers['x-telegram-bot-api-secret-token'];
-    if (secret !== TELEGRAM_WEBHOOK_SECRET) {
-      return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    }
+  if (!TELEGRAM_WEBHOOK_SECRET) {
+    return res.status(500).json({ ok: false, error: 'Missing webhook secret.' });
+  }
+
+  const secret = req.headers['x-telegram-bot-api-secret-token'];
+  if (secret !== TELEGRAM_WEBHOOK_SECRET) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
   }
 
   let update = req.body;

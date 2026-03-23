@@ -1,5 +1,4 @@
 import {
-  X,
   Bed,
   Bath,
   Maximize,
@@ -11,19 +10,17 @@ import {
   ChevronLeft,
   ChevronRight,
   Hash,
+  ArrowRight,
 } from "lucide-react";
 import { Property } from "../lib/supabase";
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 
 interface PropertyDetailsProps {
   property: Property;
-  onClose: () => void;
 }
 
-export const PropertyDetails = ({
-  property,
-  onClose,
-}: PropertyDetailsProps) => {
+export const PropertyDetails = ({ property }: PropertyDetailsProps) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const phoneNumber = "00201002100785";
   const whatsappNumber = "201002100785"; // بدون 00 في البداية للواتساب
@@ -33,7 +30,7 @@ export const PropertyDetails = ({
     alert(`رقم الهاتف: ${phoneNumber}\n\nسيتم فتح واتساب للتواصل...`);
 
     // فتح واتساب مع رسالة جاهزة
-    const message = `مرحباً، أنا مهتم بالعقار: ${property.name}\nكود العقار: ${property.property_code}`;
+    const message = `مرحباً، أنا مهتم بالعقار: ${property.name}\nكود العقار: ${property.property_code}\nID العقار: ${property.id}`;
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank");
   };
@@ -55,6 +52,10 @@ export const PropertyDetails = ({
 
   // دعم لوحة المفاتيح للتنقل بين الصور
   useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [property.id]);
+
+  useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") {
         setCurrentImageIndex(
@@ -70,19 +71,41 @@ export const PropertyDetails = ({
   }, [images.length]);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-slate-200 p-4 flex justify-between items-center z-10">
-          <h2 className="text-2xl font-bold text-slate-900">{property.name}</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-full transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
+    <div className="container mx-auto px-4 py-10">
+      <div className="mb-8">
+        <Link
+          to="/"
+          className="mb-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-100"
+        >
+          <ArrowRight className="h-4 w-4" />
+          <span>العودة للرئيسية</span>
+        </Link>
+        <div className="rounded-2xl bg-white p-6 shadow-lg">
+          <div className="mb-3 flex flex-wrap items-center gap-3">
+            <span className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white">
+              كود العقار: {property.property_code || "---"}
+            </span>
+            <span className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
+              نوع العقار: {property.property_type}
+            </span>
+            <span className="rounded-lg bg-amber-100 px-4 py-2 text-sm font-medium text-amber-700">
+              الحالة: {property.listing_type}
+            </span>
+          </div>
+          <h1 className="mb-2 text-3xl font-bold text-slate-900 md:text-4xl">
+            {property.name}
+          </h1>
+          <p className="mb-4 text-lg text-slate-600">
+            {property.city} - {property.area_name}
+          </p>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-2 text-sm font-medium text-slate-500">ID العقار</p>
+            <p className="break-all font-mono text-sm text-slate-900">{property.id}</p>
+          </div>
         </div>
+      </div>
 
-        <div className="p-6">
+      <div className="rounded-2xl bg-white p-6 shadow-lg">
           <div className="relative mb-6">
             <div className="relative group">
               <img
@@ -140,6 +163,9 @@ export const PropertyDetails = ({
                 <span className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium flex items-center gap-2">
                   <Hash className="w-4 h-4" />
                   {property.property_code || "---"}
+                </span>
+                <span className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg font-medium">
+                  ID: {property.id}
                 </span>
                 <span className="px-4 py-2 bg-slate-900 text-white rounded-lg font-medium">
                   {property.listing_type}
@@ -254,6 +280,5 @@ export const PropertyDetails = ({
           </div>
         </div>
       </div>
-    </div>
   );
 };

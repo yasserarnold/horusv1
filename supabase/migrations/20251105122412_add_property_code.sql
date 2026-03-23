@@ -27,11 +27,17 @@ END $$;
 DO $$
 DECLARE
   prop RECORD;
-  counter INT := 1;
+  counter BIGINT;
 BEGIN
+  SELECT COALESCE(MAX(SUBSTRING(property_code FROM '([0-9]+)$')::BIGINT), 0) + 1
+  INTO counter
+  FROM properties
+  WHERE property_code IS NOT NULL
+    AND property_code ~ '[0-9]+$';
+
   FOR prop IN 
     SELECT id FROM properties 
-    WHERE property_code IS NULL 
+    WHERE property_code IS NULL OR BTRIM(property_code) = ''
     ORDER BY created_at
   LOOP
     UPDATE properties 
@@ -51,28 +57,71 @@ CREATE INDEX IF NOT EXISTS idx_properties_property_code
   ON properties(property_code);
 
 -- إضافة دالة لتوليد الكود التالي تلقائياً
+CREATE SEQUENCE IF NOT EXISTS public.property_code_seq;
+
+DO $$
+DECLARE
+  max_number BIGINT;
+BEGIN
+  SELECT COALESCE(MAX(SUBSTRING(property_code FROM '([0-9]+)$')::BIGINT), 0)
+  INTO max_number
+  FROM properties
+  WHERE property_code ~ '[0-9]+$';
+
+  IF max_number = 0 THEN
+    PERFORM setval('public.property_code_seq', 1, false);
+  ELSE
+    PERFORM setval('public.property_code_seq', max_number, true);
+  END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.generate_property_code()
+RETURNS TEXT AS $$
+DECLARE
+  next_number BIGINT;
+BEGIN
+  next_number := nextval('public.property_code_seq');
+  RETURN 'Horus' || LPAD(next_number::text, 3, '0');
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION public.assign_property_code()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.property_code IS NULL OR BTRIM(NEW.property_code) = '' THEN
+    NEW.property_code := public.generate_property_code();
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS set_property_code_before_insert ON properties;
+CREATE TRIGGER set_property_code_before_insert
+  BEFORE INSERT ON properties
+  FOR EACH ROW
+  EXECUTE FUNCTION public.assign_property_code();
+
+ALTER TABLE properties
+  ALTER COLUMN property_code SET DEFAULT public.generate_property_code();
+
 CREATE OR REPLACE FUNCTION generate_next_property_code()
 RETURNS TEXT AS $$
 DECLARE
-  last_code TEXT;
-  last_number INT;
-  next_number INT;
+  current_value BIGINT;
+  sequence_called BOOLEAN;
+  next_number BIGINT;
 BEGIN
-  -- الحصول على آخر كود
-  SELECT property_code INTO last_code
-  FROM properties
-  ORDER BY property_code DESC
-  LIMIT 1;
-  
-  -- استخراج الرقم من آخر كود
-  IF last_code IS NULL THEN
-    next_number := 1;
+  SELECT last_value, is_called
+  INTO current_value, sequence_called
+  FROM public.property_code_seq;
+
+  IF sequence_called THEN
+    next_number := current_value + 1;
   ELSE
-    last_number := SUBSTRING(last_code FROM 6)::INT;
-    next_number := last_number + 1;
+    next_number := current_value;
   END IF;
-  
-  -- إرجاع الكود الجديد
+
   RETURN 'Horus' || LPAD(next_number::text, 3, '0');
 END;
 $$ LANGUAGE plpgsql;
