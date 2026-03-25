@@ -20,6 +20,31 @@
     animation: fadeIn 1s ease-in;
   }
 
+  .hero-reveal {
+    animation: heroReveal 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .hero-float {
+    animation: heroFloat 8s ease-in-out infinite;
+  }
+
+  .hero-orb {
+    animation: heroOrb 14s ease-in-out infinite alternate;
+  }
+
+  .hero-grid-drift {
+    animation: heroGridDrift 24s linear infinite;
+  }
+
+  .hero-ken-burns {
+    animation: heroKenBurns 18s ease-in-out infinite alternate;
+    transform-origin: center;
+  }
+
+  .hero-pulse-soft {
+    animation: heroPulseSoft 2.4s ease-in-out infinite;
+  }
+
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -29,5 +54,77 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  @keyframes heroReveal {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 28px, 0) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+
+  @keyframes heroFloat {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(0, -10px, 0);
+    }
+  }
+
+  @keyframes heroOrb {
+    0% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    100% {
+      transform: translate3d(18px, -22px, 0) scale(1.08);
+    }
+  }
+
+  @keyframes heroGridDrift {
+    0% {
+      transform: translate3d(0, 0, 0);
+    }
+    100% {
+      transform: translate3d(36px, 24px, 0);
+    }
+  }
+
+  @keyframes heroKenBurns {
+    0% {
+      transform: scale(1) translate3d(0, 0, 0);
+    }
+    100% {
+      transform: scale(1.06) translate3d(-8px, -10px, 0);
+    }
+  }
+
+  @keyframes heroPulseSoft {
+    0%,
+    100% {
+      opacity: 0.72;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.16);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .hero-reveal,
+  .hero-float,
+  .hero-orb,
+  .hero-grid-drift,
+  .hero-ken-burns,
+  .hero-pulse-soft {
+    animation: none !important;
   }
 }
