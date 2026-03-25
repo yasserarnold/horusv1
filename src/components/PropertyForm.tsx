@@ -22,6 +22,31 @@ interface PendingMediaUpload {
   previewUrl: string;
 }
 
+const createInitialFormData = (property: Property | null) => ({
+  property_code: property?.property_code || '',
+  name: property?.name || '',
+  description: property?.description || '',
+  property_type: property?.property_type || 'شقة',
+  listing_type: property?.listing_type || 'للبيع',
+  finishing_status: property?.finishing_status || '',
+  handover_status: property?.handover_status || '',
+  price: property ? property.price.toString() : '',
+  area: property ? property.area.toString() : '',
+  bedrooms: property ? property.bedrooms.toString() : '2',
+  bathrooms: property ? property.bathrooms.toString() : '1',
+  floor: property?.floor?.toString() || '',
+  city: property?.city || 'القاهرة',
+  area_name: property?.area_name || '',
+  address: property?.address || '',
+  latitude: property?.latitude?.toString() || '',
+  longitude: property?.longitude?.toString() || '',
+  featured: property?.featured || false,
+  owner_name: property?.owner_name || '',
+  owner_phone: property?.owner_phone || '',
+  original_price: property?.original_price?.toString() || '',
+  admin_notes: property?.admin_notes || '',
+});
+
 const formatFileSize = (bytes: number) => {
   if (bytes >= 1024 * 1024) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -52,30 +77,7 @@ const revokePendingUploads = (uploads: PendingMediaUpload[]) => {
 export const PropertyForm = ({ property, onClose }: PropertyFormProps) => {
   const [loading, setLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const [formData, setFormData] = useState({
-    property_code: '',
-    name: '',
-    description: '',
-    property_type: 'شقة',
-    listing_type: 'للبيع',
-    finishing_status: '',
-    handover_status: '',
-    price: '',
-    area: '',
-    bedrooms: '2',
-    bathrooms: '1',
-    floor: '',
-    city: 'القاهرة',
-    area_name: '',
-    address: '',
-    latitude: '',
-    longitude: '',
-    featured: false,
-    owner_name: '',
-    owner_phone: '',
-    original_price: '',
-    admin_notes: ''
-  });
+  const [formData, setFormData] = useState(() => createInitialFormData(property));
   const [images, setImages] = useState<string[]>([]);
   const [videos, setVideos] = useState<string[]>([]);
   const [newImageUrl, setNewImageUrl] = useState('');
@@ -113,17 +115,51 @@ export const PropertyForm = ({ property, onClose }: PropertyFormProps) => {
 
   // جلب المناطق عند تغيير المدينة
   useEffect(() => {
+    let isActive = true;
+
     const loadAreas = async () => {
-      if (formData.city) {
-        setLoadingAreas(true);
-        const areasData = await getAreasByCityName(formData.city);
-        setAreas(areasData);
-        setLoadingAreas(false);
-      } else {
+      const cityName = formData.city.trim();
+
+      if (!cityName) {
         setAreas([]);
+        setLoadingAreas(false);
+        return;
       }
+
+      setLoadingAreas(true);
+      const areasData = await getAreasByCityName(cityName);
+
+      if (!isActive) {
+        return;
+      }
+
+      const selectedAreaName = formData.area_name.trim();
+      const hasSelectedArea = selectedAreaName
+        ? areasData.some((area) => area.name === selectedAreaName)
+        : true;
+
+      setAreas(
+        hasSelectedArea
+          ? areasData
+          : [
+              {
+                id: `legacy-area-${cityName}-${selectedAreaName}`,
+                city_id: '',
+                name: selectedAreaName,
+                created_at: '',
+                updated_at: '',
+              },
+              ...areasData,
+            ],
+      );
+      setLoadingAreas(false);
     };
+
     loadAreas();
+
+    return () => {
+      isActive = false;
+    };
   }, [formData.city]);
 
   useEffect(() => {
@@ -133,59 +169,13 @@ export const PropertyForm = ({ property, onClose }: PropertyFormProps) => {
     setPendingVideoUploads([]);
 
     if (property) {
-      setFormData({
-        property_code: property.property_code,
-        name: property.name,
-        description: property.description,
-        property_type: property.property_type,
-        listing_type: property.listing_type,
-        finishing_status: property.finishing_status || '',
-        handover_status: property.handover_status || '',
-        price: property.price.toString(),
-        area: property.area.toString(),
-        bedrooms: property.bedrooms.toString(),
-        bathrooms: property.bathrooms.toString(),
-        floor: property.floor?.toString() || '',
-        city: property.city,
-        area_name: property.area_name,
-        address: property.address,
-        latitude: property.latitude?.toString() || '',
-        longitude: property.longitude?.toString() || '',
-        featured: property.featured,
-        owner_name: property.owner_name || '',
-        owner_phone: property.owner_phone || '',
-        original_price: property.original_price?.toString() || '',
-        admin_notes: property.admin_notes || ''
-      });
+      setFormData(createInitialFormData(property));
       setImages(property.images || []);
       setVideos(property.videos || []);
       return;
     }
 
-    setFormData({
-      property_code: '',
-      name: '',
-      description: '',
-      property_type: 'شقة',
-      listing_type: 'للبيع',
-      finishing_status: '',
-      handover_status: '',
-      price: '',
-      area: '',
-      bedrooms: '2',
-      bathrooms: '1',
-      floor: '',
-      city: 'القاهرة',
-      area_name: '',
-      address: '',
-      latitude: '',
-      longitude: '',
-      featured: false,
-      owner_name: '',
-      owner_phone: '',
-      original_price: '',
-      admin_notes: ''
-    });
+    setFormData(createInitialFormData(null));
     setImages([]);
     setVideos([]);
   }, [property]);

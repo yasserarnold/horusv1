@@ -27,6 +27,8 @@ const areasCache: Map<string, Area[]> = new Map();
 let cacheTimestamp: number = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 دقائق
 
+const normalizeLookupValue = (value: string) => value.trim();
+
 /**
  * جلب جميع المدن من قاعدة البيانات
  */
@@ -87,12 +89,25 @@ export const getAreasByCity = async (cityId: string): Promise<Area[]> => {
  */
 export const getAreasByCityName = async (cityName: string): Promise<Area[]> => {
   try {
-    // أولاً، جلب المدينة
+    const normalizedCityName = normalizeLookupValue(cityName);
+    if (!normalizedCityName) {
+      return [];
+    }
+
+    const cachedCity = citiesCache?.find(
+      (city) => normalizeLookupValue(city.name) === normalizedCityName,
+    );
+
+    if (cachedCity) {
+      return await getAreasByCity(cachedCity.id);
+    }
+
     const { data: cityData, error: cityError } = await supabase
       .from("cities")
       .select("id")
-      .eq("name", cityName)
-      .single();
+      .ilike("name", normalizedCityName)
+      .limit(1)
+      .maybeSingle();
 
     if (cityError || !cityData) {
       return [];
@@ -110,11 +125,25 @@ export const getAreasByCityName = async (cityName: string): Promise<Area[]> => {
  */
 export const getCityByName = async (cityName: string): Promise<City | null> => {
   try {
+    const normalizedCityName = normalizeLookupValue(cityName);
+    if (!normalizedCityName) {
+      return null;
+    }
+
+    const cachedCity = citiesCache?.find(
+      (city) => normalizeLookupValue(city.name) === normalizedCityName,
+    );
+
+    if (cachedCity) {
+      return cachedCity;
+    }
+
     const { data, error } = await supabase
       .from("cities")
       .select("*")
-      .eq("name", cityName)
-      .single();
+      .ilike("name", normalizedCityName)
+      .limit(1)
+      .maybeSingle();
 
     if (error) throw error;
     return data;
@@ -132,6 +161,9 @@ export const getAreaByName = async (
   cityName: string,
 ): Promise<Area | null> => {
   try {
+    const normalizedAreaName = normalizeLookupValue(areaName);
+    if (!normalizedAreaName) return null;
+
     const city = await getCityByName(cityName);
     if (!city) return null;
 
@@ -139,8 +171,9 @@ export const getAreaByName = async (
       .from("areas")
       .select("*")
       .eq("city_id", city.id)
-      .eq("name", areaName)
-      .single();
+      .ilike("name", normalizedAreaName)
+      .limit(1)
+      .maybeSingle();
 
     if (error) throw error;
     return data;
