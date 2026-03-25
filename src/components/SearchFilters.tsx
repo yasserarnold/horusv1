@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { getCities, getAreasByCityName, City, Area } from '../lib/citiesAreas';
+import { FINISHING_STATUS_OPTIONS, HANDOVER_STATUS_OPTIONS } from '../lib/propertyOptions';
 
 interface SearchFiltersProps {
   filters: {
@@ -9,6 +10,8 @@ interface SearchFiltersProps {
     area: string;
     propertyType: string;
     listingType: string;
+    finishingStatus: string;
+    handoverStatus: string;
     minPrice: string;
     maxPrice: string;
     minArea: string;
@@ -62,7 +65,7 @@ export const SearchFilters = ({ filters, onFilterChange, onSearch }: SearchFilte
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-4">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">المدينة</label>
           <select
@@ -138,6 +141,34 @@ export const SearchFilters = ({ filters, onFilterChange, onSearch }: SearchFilte
             <option value="2">2</option>
             <option value="3">3</option>
             <option value="4">4+</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">التشطيب</label>
+          <select
+            value={filters.finishingStatus}
+            onChange={(e) => onFilterChange('finishingStatus', e.target.value)}
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+          >
+            <option value="">الكل</option>
+            {FINISHING_STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">الاستلام</label>
+          <select
+            value={filters.handoverStatus}
+            onChange={(e) => onFilterChange('handoverStatus', e.target.value)}
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+          >
+            <option value="">الكل</option>
+            {HANDOVER_STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
           </select>
         </div>
       </div>

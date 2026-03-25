@@ -27,17 +27,20 @@ function HomePage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
+  const initialFilters = {
     propertyCode: "",
     city: "",
     area: "",
     propertyType: "",
     listingType: "",
+    finishingStatus: "",
+    handoverStatus: "",
     minPrice: "",
     maxPrice: "",
     minArea: "",
     bedrooms: "",
-  });
+  };
+  const [filters, setFilters] = useState(initialFilters);
 
   useEffect(() => {
     const redirectFromLegacyQuery = async () => {
@@ -121,6 +124,18 @@ function HomePage() {
 
     if (filters.listingType) {
       filtered = filtered.filter((p) => p.listing_type === filters.listingType);
+    }
+
+    if (filters.finishingStatus) {
+      filtered = filtered.filter(
+        (p) => p.finishing_status === filters.finishingStatus,
+      );
+    }
+
+    if (filters.handoverStatus) {
+      filtered = filtered.filter(
+        (p) => p.handover_status === filters.handoverStatus,
+      );
     }
 
     if (filters.minPrice) {
@@ -225,17 +240,7 @@ function HomePage() {
                   </div>
                   <button
                     onClick={() => {
-                      setFilters({
-                        propertyCode: "",
-                        city: "",
-                        area: "",
-                        propertyType: "",
-                        listingType: "",
-                        minPrice: "",
-                        maxPrice: "",
-                        minArea: "",
-                        bedrooms: "",
-                      });
+                      setFilters({ ...initialFilters });
                       setFilteredProperties(properties);
                     }}
                     className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors text-sm font-medium"
@@ -264,17 +269,7 @@ function HomePage() {
                 <p className="text-slate-500 mb-4">جرب تغيير معايير البحث</p>
                 <button
                   onClick={() => {
-                    setFilters({
-                      propertyCode: "",
-                      city: "",
-                      area: "",
-                      propertyType: "",
-                      listingType: "",
-                      minPrice: "",
-                      maxPrice: "",
-                      minArea: "",
-                      bedrooms: "",
-                    });
+                    setFilters({ ...initialFilters });
                     setFilteredProperties(properties);
                   }}
                   className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors font-medium"

@@ -8,6 +8,7 @@ import { PropertyDetailsModal } from '../components/PropertyDetailsModal';
 import { CitiesAreasManagement } from '../components/CitiesAreasManagement';
 import { useAuth } from '../contexts/AuthContext';
 import { getAreasByCityName } from '../lib/citiesAreas';
+import { FINISHING_STATUS_OPTIONS, HANDOVER_STATUS_OPTIONS } from '../lib/propertyOptions';
 
 export const Admin = () => {
   const { user, isAdmin, loading: authLoading, signOut } = useAuth();
@@ -24,6 +25,8 @@ export const Admin = () => {
   const [filters, setFilters] = useState({
     propertyType: '',
     listingType: '',
+    finishingStatus: '',
+    handoverStatus: '',
     city: '',
     area: ''
   });
@@ -37,6 +40,14 @@ export const Admin = () => {
 
     if (filters.listingType) {
       filtered = filtered.filter(p => p.listing_type === filters.listingType);
+    }
+
+    if (filters.finishingStatus) {
+      filtered = filtered.filter(p => p.finishing_status === filters.finishingStatus);
+    }
+
+    if (filters.handoverStatus) {
+      filtered = filtered.filter(p => p.handover_status === filters.handoverStatus);
     }
 
     if (filters.city) {
@@ -104,6 +115,8 @@ export const Admin = () => {
     setFilters({
       propertyType: '',
       listingType: '',
+      finishingStatus: '',
+      handoverStatus: '',
       city: '',
       area: ''
     });
@@ -266,7 +279,7 @@ export const Admin = () => {
             <Filter className="w-5 h-5 text-slate-700" />
             <h3 className="text-lg font-bold text-slate-900">تصفية العقارات</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">نوع العقار</label>
               <select
@@ -293,6 +306,32 @@ export const Admin = () => {
                 <option value="">الكل</option>
                 <option value="للبيع">للبيع</option>
                 <option value="للإيجار">للإيجار</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">التشطيب</label>
+              <select
+                value={filters.finishingStatus}
+                onChange={(e) => setFilters({ ...filters, finishingStatus: e.target.value })}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
+              >
+                <option value="">الكل</option>
+                {FINISHING_STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">الاستلام</label>
+              <select
+                value={filters.handoverStatus}
+                onChange={(e) => setFilters({ ...filters, handoverStatus: e.target.value })}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
+              >
+                <option value="">الكل</option>
+                {HANDOVER_STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -343,7 +382,7 @@ export const Admin = () => {
             <p className="text-sm text-slate-600">
               <span className="font-bold text-slate-900">{filteredProperties.length}</span> من {properties.length} عقار
             </p>
-            {(filters.propertyType || filters.listingType || filters.city || filters.area) && (
+            {(filters.propertyType || filters.listingType || filters.finishingStatus || filters.handoverStatus || filters.city || filters.area) && (
               <div className="flex flex-wrap gap-2">
                 {filters.propertyType && (
                   <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
@@ -353,6 +392,16 @@ export const Admin = () => {
                 {filters.listingType && (
                   <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm font-medium">
                     {filters.listingType}
+                  </span>
+                )}
+                {filters.finishingStatus && (
+                  <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium">
+                    {filters.finishingStatus}
+                  </span>
+                )}
+                {filters.handoverStatus && (
+                  <span className="px-3 py-1 bg-sky-100 text-sky-700 rounded-full text-sm font-medium">
+                    {filters.handoverStatus}
                   </span>
                 )}
                 {filters.city && (
