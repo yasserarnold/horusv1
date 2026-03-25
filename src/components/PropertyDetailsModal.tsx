@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { X, MapPin, Bed, Bath, Square, Calendar, User, Phone, DollarSign, StickyNote, Eye } from 'lucide-react';
 import { Property } from '../lib/supabase';
+import { ImageLightbox } from './ImageLightbox';
 
 interface PropertyDetailsModalProps {
   property: Property;
@@ -7,6 +9,7 @@ interface PropertyDetailsModalProps {
 }
 
 export const PropertyDetailsModal = ({ property, onClose }: PropertyDetailsModalProps) => {
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('ar-EG', {
       year: 'numeric',
@@ -41,7 +44,8 @@ export const PropertyDetailsModal = ({ property, onClose }: PropertyDetailsModal
                   key={index}
                   src={image}
                   alt={`${property.name} - صورة ${index + 1}`}
-                  className="w-full h-48 object-contain bg-slate-100 rounded-lg shadow-md"
+                  className="w-full h-48 object-contain bg-slate-100 rounded-lg shadow-md cursor-zoom-in"
+                  onClick={() => setSelectedImageIndex(index)}
                 />
               ))}
             </div>
@@ -278,6 +282,14 @@ export const PropertyDetailsModal = ({ property, onClose }: PropertyDetailsModal
             </button>
           </div>
         </div>
+        {selectedImageIndex !== null && (
+          <ImageLightbox
+            images={property.images || []}
+            initialIndex={selectedImageIndex}
+            alt={property.name}
+            onClose={() => setSelectedImageIndex(null)}
+          />
+        )}
       </div>
     </div>
   );

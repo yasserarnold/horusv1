@@ -1,12 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_SERVER_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  '';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
-const PUBLIC_SITE_URL = process.env.PUBLIC_SITE_URL || process.env.SITE_URL || '';
+const vercelDeploymentUrl =
+  process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+  process.env.VERCEL_URL ||
+  '';
+const PUBLIC_SITE_URL =
+  process.env.PUBLIC_SITE_URL ||
+  process.env.SITE_URL ||
+  (vercelDeploymentUrl ? `https://${vercelDeploymentUrl}` : '');
 const KNOWLEDGE_BASE_URL =
   process.env.TELEGRAM_KB_URL ||
   process.env.KNOWLEDGE_BASE_URL ||
@@ -21,7 +31,30 @@ const KNOWLEDGE_BASE_CACHE_TTL_MS = 5 * 60 * 1000;
 const KNOWLEDGE_BASE_TIMEOUT_MS = 6_000;
 const KNOWLEDGE_BASE_MAX_BYTES = 200_000;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const PUBLIC_PROPERTY_SELECT =
+  'id, property_code, name, city, area_name, price, area, bedrooms, bathrooms, listing_type, property_type, featured, images, created_at, address, finishing_status, handover_status';
+
+let supabaseClient = null;
+
+const getSupabase = () => {
+  if (!SUPABASE_URL || !SUPABASE_SERVER_KEY) {
+    throw new Error('Missing Supabase server credentials.');
+  }
+
+  if (!supabaseClient) {
+    supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVER_KEY);
+  }
+
+  return supabaseClient;
+};
+
+const getMissingEnv = () => {
+  const missing = [];
+  if (!SUPABASE_URL) missing.push('SUPABASE_URL');
+  if (!SUPABASE_SERVER_KEY) missing.push('SUPABASE_SERVICE_ROLE_KEY_OR_SUPABASE_ANON_KEY');
+  if (!TELEGRAM_BOT_TOKEN) missing.push('TELEGRAM_BOT_TOKEN');
+  return missing;
+};
 
 const telegramApiUrl = (method) => `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${method}`;
 
@@ -399,16 +432,18 @@ const buildPropertyUrl = (property) => {
 
   try {
     const url = new URL(PUBLIC_SITE_URL);
-    if (property?.id) {
+    const propertyIdentifier = property?.property_code || property?.id;
+    if (propertyIdentifier) {
       const basePath = url.pathname.replace(/\/$/, '');
-      url.pathname = `${basePath}/property/${encodeURIComponent(property.id)}`;
+      url.pathname = `${basePath}/property/${encodeURIComponent(propertyIdentifier)}`;
       url.search = '';
       url.hash = '';
     }
     return url.toString();
   } catch {
-    if (!property?.id) return PUBLIC_SITE_URL;
-    return `${PUBLIC_SITE_URL.replace(/\/$/, '')}/property/${encodeURIComponent(property.id)}`;
+    const propertyIdentifier = property?.property_code || property?.id;
+    if (!propertyIdentifier) return PUBLIC_SITE_URL;
+    return `${PUBLIC_SITE_URL.replace(/\/$/, '')}/property/${encodeURIComponent(propertyIdentifier)}`;
   }
 };
 
@@ -566,48 +601,72 @@ const sendProperty = async (chatId, property) => {
   }
 };
 
+const fetchPublicProperties = async () => {
+  const supabase = getSupabase();
+
+  const { data, error } = await supabase.rpc('get_public_properties');
+  if (!error && Array.isArray(data)) {
+    return data;
+  }
+
+  const { data: fallbackData, error: fallbackError } = await supabase
+    .from('properties')
+    .select(PUBLIC_PROPERTY_SELECT)
+    .order('featured', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (fallbackError) {
+    console.error('Telegram bot failed to fetch properties:', error || fallbackError);
+    return [];
+  }
+
+  return fallbackData || [];
+};
+
 const searchProperties = async (query) => {
   const raw = (query || '').trim();
   if (!raw) return [];
 
   const clean = raw.replace(/[,]/g, ' ').trim().slice(0, 60);
   const codeCandidate = clean.replace(/\s+/g, '').toUpperCase();
+  const normalizedQuery = normalizeText(clean);
+  const properties = await fetchPublicProperties();
 
-  if (codeCandidate) {
-    const { data: exact } = await supabase
-      .from('properties')
-      .select(
-        'id, property_code, name, city, area_name, price, area, bedrooms, bathrooms, listing_type, property_type, featured, images'
-      )
-      .eq('property_code', codeCandidate)
-      .limit(1)
-      .maybeSingle();
-
-    if (exact) return [exact];
+  const exact = properties.find(
+    (property) =>
+      String(property.property_code || '').trim().toUpperCase() === codeCandidate,
+  );
+  if (exact) {
+    return [exact];
   }
 
-  const like = `%${clean}%`;
-  const { data } = await supabase
-    .from('properties')
-    .select(
-      'id, property_code, name, city, area_name, price, area, bedrooms, bathrooms, listing_type, property_type, featured, images'
-    )
-    .or(
-      `name.ilike.${like},city.ilike.${like},area_name.ilike.${like},address.ilike.${like},property_code.ilike.${like}`
-    )
-    .limit(MAX_RESULTS);
+  return properties
+    .filter((property) => {
+      const haystack = normalizeText(
+        [
+          property.name,
+          property.city,
+          property.area_name,
+          property.address,
+          property.property_code,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      );
 
-  return data || [];
+      return haystack.includes(normalizedQuery);
+    })
+    .slice(0, MAX_RESULTS);
 };
 
 const handleLatest = async (chatId) => {
-  const { data } = await supabase
-    .from('properties')
-    .select(
-      'id, property_code, name, city, area_name, price, area, bedrooms, bathrooms, listing_type, property_type, featured, images, created_at'
+  const data = (await fetchPublicProperties())
+    .sort(
+      (a, b) =>
+        new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime(),
     )
-    .order('created_at', { ascending: false })
-    .limit(5);
+    .slice(0, 5);
 
   if (!data || data.length === 0) {
     await sendMessage(chatId, 'لا توجد عقارات حالياً.');
@@ -629,14 +688,12 @@ const handleAreaSearch = async (chatId, query) => {
   }
 
   const clean = raw.replace(/[,]/g, ' ').trim().slice(0, 60);
-  const like = `%${clean}%`;
-  const { data } = await supabase
-    .from('properties')
-    .select(
-      'id, property_code, name, city, area_name, price, area, bedrooms, bathrooms, listing_type, property_type, featured, images'
+  const normalizedQuery = normalizeText(clean);
+  const data = (await fetchPublicProperties())
+    .filter((property) =>
+      normalizeText(property.area_name).includes(normalizedQuery),
     )
-    .ilike('area_name', like)
-    .limit(MAX_RESULTS);
+    .slice(0, MAX_RESULTS);
 
   if (!data || data.length === 0) {
     await sendMessage(chatId, 'لم يتم العثور على نتائج مطابقة للمنطقة.');
@@ -669,21 +726,31 @@ const handleSearchCommand = async (chatId, query) => {
 };
 
 export default async function handler(req, res) {
+  const missingEnv = getMissingEnv();
+
   if (req.method === 'GET') {
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({
+      ok: missingEnv.length === 0,
+      route: '/api/telegram',
+      missingEnv,
+      webhookSecretConfigured: Boolean(TELEGRAM_WEBHOOK_SECRET),
+      publicSiteUrlConfigured: Boolean(PUBLIC_SITE_URL),
+    });
   }
 
-  if (!TELEGRAM_BOT_TOKEN || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    return res.status(500).json({ ok: false, error: 'Missing environment variables.' });
+  if (missingEnv.length > 0) {
+    return res.status(500).json({
+      ok: false,
+      error: 'Missing environment variables.',
+      missingEnv,
+    });
   }
 
-  if (!TELEGRAM_WEBHOOK_SECRET) {
-    return res.status(500).json({ ok: false, error: 'Missing webhook secret.' });
-  }
-
-  const secret = req.headers['x-telegram-bot-api-secret-token'];
-  if (secret !== TELEGRAM_WEBHOOK_SECRET) {
-    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  if (TELEGRAM_WEBHOOK_SECRET) {
+    const secret = req.headers['x-telegram-bot-api-secret-token'];
+    if (secret !== TELEGRAM_WEBHOOK_SECRET) {
+      return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    }
   }
 
   let update = req.body;

@@ -15,6 +15,7 @@ import {
 import { Property } from "../lib/supabase";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { ImageLightbox } from "./ImageLightbox";
 
 interface PropertyDetailsProps {
   property: Property;
@@ -22,6 +23,7 @@ interface PropertyDetailsProps {
 
 export const PropertyDetails = ({ property }: PropertyDetailsProps) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isImageOpen, setIsImageOpen] = useState(false);
   const phoneNumber = "00201002100785";
   const whatsappNumber = "201002100785"; // بدون 00 في البداية للواتساب
 
@@ -117,7 +119,8 @@ export const PropertyDetails = ({ property }: PropertyDetailsProps) => {
               <img
                 src={images[currentImageIndex]}
                 alt={property.name}
-                className="w-full h-96 object-contain bg-slate-100 rounded-xl"
+                className="w-full h-96 object-contain bg-slate-100 rounded-xl cursor-zoom-in"
+                onClick={() => setIsImageOpen(true)}
               />
               {images.length > 1 && (
                 <>
@@ -298,7 +301,15 @@ export const PropertyDetails = ({ property }: PropertyDetailsProps) => {
               </div>
             </div>
           </div>
-        </div>
       </div>
+      {isImageOpen && (
+        <ImageLightbox
+          images={images}
+          initialIndex={currentImageIndex}
+          alt={property.name}
+          onClose={() => setIsImageOpen(false)}
+        />
+      )}
+    </div>
   );
 };

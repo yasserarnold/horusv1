@@ -22,6 +22,7 @@ import {
   buildWhatsAppUrl,
 } from "../lib/contact";
 import { getDisplayHandoverStatus } from "../lib/propertyStatus";
+import { ImageLightbox } from "./ImageLightbox";
 
 const priceFormatter = new Intl.NumberFormat("ar-EG");
 const fallbackImage =
@@ -50,6 +51,73 @@ interface LeadButtonProps {
 }
 
 const formatPrice = (price: number) => `${priceFormatter.format(price)} جنيه`;
+
+const addMonths = (date: Date, months: number) => {
+  const nextDate = new Date(date);
+  const originalDay = nextDate.getDate();
+
+  nextDate.setMonth(nextDate.getMonth() + months);
+
+  if (nextDate.getDate() < originalDay) {
+    nextDate.setDate(0);
+  }
+
+  return nextDate;
+};
+
+const getConstructionCountdown = (createdAt: string, nowMs: number) => {
+  const createdDate = new Date(createdAt);
+  if (Number.isNaN(createdDate.getTime())) {
+    return null;
+  }
+
+  const targetDate = addMonths(createdDate, 6);
+  const targetTime = targetDate.getTime();
+
+  if (targetTime <= nowMs) {
+    return {
+      expired: true,
+      months: 0,
+      days: 0,
+      hours: 0,
+      targetLabel: targetDate.toLocaleDateString("ar-EG", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+    };
+  }
+
+  let cursor = new Date(nowMs);
+  let months = 0;
+
+  while (true) {
+    const nextMonth = addMonths(cursor, 1);
+    if (nextMonth.getTime() <= targetTime) {
+      months += 1;
+      cursor = nextMonth;
+      continue;
+    }
+    break;
+  }
+
+  let remainingMs = targetTime - cursor.getTime();
+  const days = Math.floor(remainingMs / (1000 * 60 * 60 * 24));
+  remainingMs -= days * 1000 * 60 * 60 * 24;
+  const hours = Math.floor(remainingMs / (1000 * 60 * 60));
+
+  return {
+    expired: false,
+    months,
+    days,
+    hours,
+    targetLabel: targetDate.toLocaleDateString("ar-EG", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }),
+  };
+};
 
 const buildPropertyMessage = (property: Property) => {
   const handoverStatus = getDisplayHandoverStatus(property);
@@ -111,6 +179,8 @@ export const ApartmentPage = ({
   whatsappNumber = SALES_WHATSAPP_NUMBER,
 }: ApartmentPageProps) => {
   const [activeImage, setActiveImage] = useState(0);
+  const [isImageOpen, setIsImageOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const handoverStatus = getDisplayHandoverStatus(property);
 
   const images =
@@ -132,10 +202,28 @@ export const ApartmentPage = ({
   const locationLabel = `${property.area_name} - ${property.city}`;
   const addressLabel = property.address?.trim() || locationLabel;
   const urgencyCopy = `الوحدات المماثلة في ${property.area_name} بهذا السعر تتحرك بسرعة. إذا كانت هذه المواصفات مناسبة لك، فالأفضل حجز المعاينة الآن قبل تغيّر السعر أو اختفاء الخيارات المتاحة.`;
+  const isUnderConstruction = handoverStatus === "تحت الانشاء";
+  const constructionCountdown = isUnderConstruction
+    ? getConstructionCountdown(property.created_at, now)
+    : null;
 
   useEffect(() => {
     setActiveImage(0);
   }, [property.id]);
+
+  useEffect(() => {
+    setNow(Date.now());
+
+    if (!isUnderConstruction) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setNow(Date.now());
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isUnderConstruction, property.id]);
 
   return (
     <div className="pb-28 lg:pb-0">
@@ -178,9 +266,56 @@ export const ApartmentPage = ({
               </div>
 
               <div className="mt-5">
-                <p className="text-sm font-bold text-amber-300">
-                  فرصة جاهزة للمعاينة والتفاوض
-                </p>
+                {constructionCountdown ? (
+                  <div>
+                    <p className="text-sm font-bold text-amber-300">
+                      {constructionCountdown.expired
+                        ? "انتهت مدة أول 6 أشهر من الإعلان"
+                        : "الوقت المتبقي من أول 6 أشهر للإعلان"}
+                    </p>
+                    {constructionCountdown.expired ? (
+                      <p className="mt-2 text-sm text-slate-300">
+                        تاريخ نهاية العد: {constructionCountdown.targetLabel}
+                      </p>
+                    ) : (
+                      <>
+                        <div className="mt-3 flex flex-wrap gap-3">
+                          <div className="min-w-[88px] rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-center backdrop-blur-sm">
+                            <p className="text-2xl font-black text-amber-300">
+                              {constructionCountdown.months}
+                            </p>
+                            <p className="mt-1 text-xs font-bold text-slate-200">
+                              أشهر
+                            </p>
+                          </div>
+                          <div className="min-w-[88px] rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-center backdrop-blur-sm">
+                            <p className="text-2xl font-black text-amber-300">
+                              {constructionCountdown.days}
+                            </p>
+                            <p className="mt-1 text-xs font-bold text-slate-200">
+                              أيام
+                            </p>
+                          </div>
+                          <div className="min-w-[88px] rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-center backdrop-blur-sm">
+                            <p className="text-2xl font-black text-amber-300">
+                              {constructionCountdown.hours}
+                            </p>
+                            <p className="mt-1 text-xs font-bold text-slate-200">
+                              ساعات
+                            </p>
+                          </div>
+                        </div>
+                        <p className="mt-2 text-sm text-slate-300">
+                          ينتهي العد في {constructionCountdown.targetLabel}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm font-bold text-amber-300">
+                    فرصة جاهزة للمعاينة والتفاوض
+                  </p>
+                )}
                 <h1 className="mt-2 text-3xl font-black leading-tight sm:text-4xl lg:text-5xl">
                   {property.name}
                 </h1>
@@ -261,7 +396,8 @@ export const ApartmentPage = ({
                   <img
                     src={images[activeImage]}
                     alt={property.name}
-                    className="h-[300px] w-full object-contain bg-slate-950 sm:h-[380px] lg:h-[520px]"
+                    className="h-[300px] w-full cursor-zoom-in object-contain bg-slate-950 sm:h-[380px] lg:h-[520px]"
+                    onClick={() => setIsImageOpen(true)}
                   />
 
                   {images.length > 1 && (
@@ -335,6 +471,14 @@ export const ApartmentPage = ({
           </div>
         </div>
       </section>
+      {isImageOpen && (
+        <ImageLightbox
+          images={images}
+          initialIndex={activeImage}
+          alt={property.name}
+          onClose={() => setIsImageOpen(false)}
+        />
+      )}
 
       <section className="container mx-auto px-4 py-10">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
