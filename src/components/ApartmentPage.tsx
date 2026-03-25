@@ -130,9 +130,7 @@ const buildPropertyMessage = (property: Property) => {
     ...(property.finishing_status
       ? [`التشطيب: ${property.finishing_status}`]
       : []),
-    ...(handoverStatus
-      ? [`الاستلام: ${handoverStatus}`]
-      : []),
+    ...(handoverStatus ? [`الاستلام: ${handoverStatus}`] : []),
     `السعر: ${formatPrice(property.price)}`,
   ].join("\n");
 };
@@ -313,7 +311,7 @@ export const ApartmentPage = ({
                     فرصة جاهزة للمعاينة والتفاوض
                   </p>
                 )}
-                <h1 className="mt-2 text-3xl font-black leading-tight sm:text-4xl lg:text-5xl">
+                <h1 className="mt-2 text-3xl font-black leading-tight sm:text-4l lg:text-4xl">
                   {property.name}
                 </h1>
                 <div className="mt-4 flex items-center gap-2 text-slate-200">
@@ -582,7 +580,9 @@ export const ApartmentPage = ({
               <div className="rounded-[28px] bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-7">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-bold text-amber-600">فيديوهات العقار</p>
+                    <p className="text-sm font-bold text-amber-600">
+                      فيديوهات العقار
+                    </p>
                     <h2 className="mt-1 text-2xl font-black text-slate-950">
                       معاينة مرئية للوحدة
                     </h2>
