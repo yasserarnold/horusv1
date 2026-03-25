@@ -271,7 +271,7 @@ export const ApartmentPage = ({
                     <p className="text-sm font-bold text-amber-300">
                       {constructionCountdown.expired
                         ? "انتهت مدة أول 6 أشهر من الإعلان"
-                        : "الوقت المتبقي من أول 6 أشهر للإعلان"}
+                        : "الاستلام بعد"}
                     </p>
                     {constructionCountdown.expired ? (
                       <p className="mt-2 text-sm text-slate-300">
