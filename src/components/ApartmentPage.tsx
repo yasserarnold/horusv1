@@ -305,9 +305,6 @@ export const ApartmentPage = ({
                             </p>
                           </div>
                         </div>
-                        <p className="mt-2 text-sm text-slate-300">
-                          ينتهي العد في {constructionCountdown.targetLabel}
-                        </p>
                       </>
                     )}
                   </div>
