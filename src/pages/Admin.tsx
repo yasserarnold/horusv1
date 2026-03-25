@@ -134,7 +134,7 @@ export const Admin = () => {
   };
 
   const shareToFacebook = (property: Property) => {
-    const url = getPublicPropertyUrl(property.id);
+    const url = getPublicPropertyUrl(property.property_code);
     if (!url) {
       alert('تعذر إنشاء رابط مشاركة عام. اضبط VITE_PUBLIC_SITE_URL على رابط الموقع المنشور مثل https://example.com');
       return;
@@ -146,7 +146,7 @@ export const Admin = () => {
   };
 
   const shareToWhatsApp = (property: Property) => {
-    const url = getPublicPropertyUrl(property.id);
+    const url = getPublicPropertyUrl(property.property_code);
     if (!url) {
       alert('تعذر إنشاء رابط مشاركة عام. اضبط VITE_PUBLIC_SITE_URL على رابط الموقع المنشور مثل https://example.com');
       return;
@@ -411,6 +411,16 @@ export const Admin = () => {
                         <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">
                           {property.property_type}
                         </span>
+                        {property.finishing_status && (
+                          <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm">
+                            {property.finishing_status}
+                          </span>
+                        )}
+                        {property.handover_status && (
+                          <span className="px-3 py-1 bg-sky-100 text-sky-700 rounded-full text-sm">
+                            {property.handover_status}
+                          </span>
+                        )}
                         {property.featured && (
                           <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
                             مميز

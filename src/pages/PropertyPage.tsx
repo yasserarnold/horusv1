@@ -1,27 +1,39 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Navbar } from "../components/Navbar";
-import { PropertyDetails } from "../components/PropertyDetails";
+import { ApartmentPage } from "../components/ApartmentPage";
 import { SiteFooter } from "../components/SiteFooter";
-import { Property, fetchPublicPropertyById } from "../lib/supabase";
+import {
+  Property,
+  fetchPublicPropertyByIdentifier,
+  getPublicPropertyPath,
+} from "../lib/supabase";
 
 export const PropertyPage = () => {
-  const { propertyId } = useParams<{ propertyId: string }>();
+  const { propertyIdentifier } = useParams<{ propertyIdentifier: string }>();
+  const navigate = useNavigate();
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadProperty = async () => {
-      if (!propertyId) {
+      if (!propertyIdentifier) {
         setProperty(null);
         setLoading(false);
         return;
       }
 
       try {
-        const data = await fetchPublicPropertyById(propertyId);
+        const data = await fetchPublicPropertyByIdentifier(propertyIdentifier);
         setProperty(data);
+
+        if (
+          data &&
+          propertyIdentifier.toLowerCase() !== data.property_code.toLowerCase()
+        ) {
+          navigate(getPublicPropertyPath(data.property_code), { replace: true });
+        }
       } catch (error) {
         console.error("Error loading property page:", error);
         setProperty(null);
@@ -31,7 +43,7 @@ export const PropertyPage = () => {
     };
 
     void loadProperty();
-  }, [propertyId]);
+  }, [navigate, propertyIdentifier]);
 
   if (loading) {
     return (
@@ -74,7 +86,7 @@ export const PropertyPage = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar />
-      <PropertyDetails property={property} />
+      <ApartmentPage property={property} />
       <SiteFooter />
     </div>
   );

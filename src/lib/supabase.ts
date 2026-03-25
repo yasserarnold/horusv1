@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { type FinishingStatus, type HandoverStatus } from "./propertyOptions";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -9,13 +10,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const PUBLIC_PROPERTY_COLUMNS = [
+const PUBLIC_PROPERTY_COLUMN_NAMES = [
   "id",
   "property_code",
   "name",
   "description",
   "property_type",
   "listing_type",
+  "finishing_status",
+  "handover_status",
   "price",
   "area",
   "bedrooms",
@@ -27,10 +30,13 @@ const PUBLIC_PROPERTY_COLUMNS = [
   "latitude",
   "longitude",
   "images",
+  "videos",
   "featured",
   "created_at",
   "updated_at",
-].join(", ");
+] as const;
+
+const PUBLIC_PROPERTY_COLUMNS = PUBLIC_PROPERTY_COLUMN_NAMES.join(", ");
 
 const configuredAdminEmails = String(import.meta.env.VITE_ADMIN_EMAILS || "")
   .split(",")
@@ -48,6 +54,8 @@ export interface Property {
   description: string;
   property_type: string;
   listing_type: string;
+  finishing_status?: FinishingStatus | null;
+  handover_status?: HandoverStatus | null;
   price: number;
   area: number;
   bedrooms: number;
@@ -59,6 +67,7 @@ export interface Property {
   latitude: number | null;
   longitude: number | null;
   images: string[];
+  videos?: string[];
   featured: boolean;
   owner_name?: string;
   owner_phone?: string;
@@ -67,6 +76,24 @@ export interface Property {
   created_at: string;
   updated_at: string;
 }
+
+const hasCompletePublicPropertyRow = (row: unknown): row is Property => {
+  if (!row || typeof row !== "object") {
+    return false;
+  }
+
+  return PUBLIC_PROPERTY_COLUMN_NAMES.every((column) =>
+    Object.prototype.hasOwnProperty.call(row, column),
+  );
+};
+
+const hasCompletePublicPropertyRows = (rows: unknown): rows is Property[] => {
+  if (!Array.isArray(rows)) {
+    return false;
+  }
+
+  return rows.every((row) => hasCompletePublicPropertyRow(row));
+};
 
 const unwrapRpcRow = <T>(data: T[] | T | null): T | null => {
   if (Array.isArray(data)) {
@@ -84,6 +111,7 @@ const isMissingRpcError = (error: { code?: string; message?: string } | null) =>
     error.code === "42883" ||
     error.message?.includes("get_public_properties") ||
     error.message?.includes("get_public_property") ||
+    error.message?.includes("get_public_property_by_code") ||
     error.message?.includes("Could not find the function") ||
     false
   );
@@ -162,12 +190,13 @@ const getPublicSiteBaseUrl = (): string => {
 
 export const fetchPublicProperties = async (): Promise<Property[]> => {
   const { data, error } = await supabase.rpc("get_public_properties");
+  const rpcData = (data ?? []) as unknown as Property[];
 
-  if (!error) {
-    return (data ?? []) as unknown as Property[];
+  if (!error && hasCompletePublicPropertyRows(data ?? [])) {
+    return rpcData;
   }
 
-  if (!isMissingRpcError(error)) {
+  if (error && !isMissingRpcError(error)) {
     throw error;
   }
 
@@ -178,36 +207,83 @@ export const fetchPublicProperties = async (): Promise<Property[]> => {
     .order("created_at", { ascending: false });
 
   if (fallbackError) {
+    if (!error) {
+      return rpcData;
+    }
+
     throw fallbackError;
   }
 
   return (fallbackData ?? []) as unknown as Property[];
 };
 
-export const fetchPublicPropertyById = async (
-  propertyId: string,
+export const fetchPublicPropertyByIdentifier = async (
+  propertyIdentifier: string,
 ): Promise<Property | null> => {
-  const { data, error } = await supabase.rpc("get_public_property", {
-    property_id: propertyId,
-  });
+  const isLikelyUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      propertyIdentifier,
+    );
 
-  if (!error) {
-    return unwrapRpcRow<Property>(
+  if (isLikelyUuid) {
+    const { data, error } = await supabase.rpc("get_public_property", {
+      property_id: propertyIdentifier,
+    });
+    const rpcRow = unwrapRpcRow<Property>(
       data as unknown as Property[] | Property | null,
     );
+
+    if (!error && (!rpcRow || hasCompletePublicPropertyRow(rpcRow))) {
+      return rpcRow;
+    }
+
+    if (error && !isMissingRpcError(error)) {
+      throw error;
+    }
+
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from("properties")
+      .select(PUBLIC_PROPERTY_COLUMNS)
+      .eq("id", propertyIdentifier)
+      .maybeSingle();
+
+    if (fallbackError) {
+      if (!error) {
+        return rpcRow;
+      }
+
+      throw fallbackError;
+    }
+
+    return fallbackData as unknown as Property | null;
   }
 
-  if (!isMissingRpcError(error)) {
+  const { data, error } = await supabase.rpc("get_public_property_by_code", {
+    property_code_input: propertyIdentifier,
+  });
+  const rpcRow = unwrapRpcRow<Property>(
+    data as unknown as Property[] | Property | null,
+  );
+
+  if (!error && (!rpcRow || hasCompletePublicPropertyRow(rpcRow))) {
+    return rpcRow;
+  }
+
+  if (error && !isMissingRpcError(error)) {
     throw error;
   }
 
   const { data: fallbackData, error: fallbackError } = await supabase
     .from("properties")
     .select(PUBLIC_PROPERTY_COLUMNS)
-    .eq("id", propertyId)
+    .ilike("property_code", propertyIdentifier)
     .maybeSingle();
 
   if (fallbackError) {
+    if (!error) {
+      return rpcRow;
+    }
+
     throw fallbackError;
   }
 
@@ -235,15 +311,15 @@ export const checkIsAdmin = async (userEmail?: string | null): Promise<boolean> 
   return true;
 };
 
-export const getPublicPropertyPath = (propertyId: string): string => {
-  return `/property/${encodeURIComponent(propertyId)}`;
+export const getPublicPropertyPath = (propertyCode: string): string => {
+  return `/property/${encodeURIComponent(propertyCode)}`;
 };
 
-export const getPublicPropertyUrl = (propertyId: string): string => {
+export const getPublicPropertyUrl = (propertyCode: string): string => {
   const publicSiteBaseUrl = getPublicSiteBaseUrl();
   if (!publicSiteBaseUrl) {
     return "";
   }
 
-  return `${publicSiteBaseUrl}${getPublicPropertyPath(propertyId)}`;
+  return `${publicSiteBaseUrl}${getPublicPropertyPath(propertyCode)}`;
 };

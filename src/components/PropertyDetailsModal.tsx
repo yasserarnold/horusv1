@@ -47,6 +47,21 @@ export const PropertyDetailsModal = ({ property, onClose }: PropertyDetailsModal
             </div>
           )}
 
+          {property.videos && property.videos.length > 0 && (
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {property.videos.map((video, index) => (
+                <div key={`${video}-${index}`} className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+                  <video
+                    src={video}
+                    controls
+                    preload="metadata"
+                    className="w-full h-56 rounded-lg bg-slate-950"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="bg-gradient-to-r from-amber-50 to-amber-100 border-r-4 border-amber-500 p-4 rounded-lg mb-6">
             <div className="flex items-center gap-2 mb-2">
               <span className="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm font-mono font-bold">
@@ -80,6 +95,22 @@ export const PropertyDetailsModal = ({ property, onClose }: PropertyDetailsModal
                     {property.listing_type}
                   </span>
                 </div>
+                {property.finishing_status && (
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="text-slate-600 font-medium">التشطيب:</span>
+                    <span className="text-slate-900 font-bold px-3 py-1 bg-emerald-100 rounded-full text-sm">
+                      {property.finishing_status}
+                    </span>
+                  </div>
+                )}
+                {property.handover_status && (
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="text-slate-600 font-medium">الاستلام:</span>
+                    <span className="text-slate-900 font-bold px-3 py-1 bg-sky-100 rounded-full text-sm">
+                      {property.handover_status}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center py-2 border-b border-slate-100">
                   <span className="text-slate-600 font-medium flex items-center gap-2">
                     <DollarSign className="w-4 h-4" />

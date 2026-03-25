@@ -30,7 +30,7 @@ export const PropertyDetails = ({ property }: PropertyDetailsProps) => {
     alert(`رقم الهاتف: ${phoneNumber}\n\nسيتم فتح واتساب للتواصل...`);
 
     // فتح واتساب مع رسالة جاهزة
-    const message = `مرحباً، أنا مهتم بالعقار: ${property.name}\nكود العقار: ${property.property_code}\nID العقار: ${property.id}`;
+    const message = `مرحباً، أنا مهتم بالعقار: ${property.name}\nكود العقار: ${property.property_code}`;
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank");
   };
@@ -88,6 +88,16 @@ export const PropertyDetails = ({ property }: PropertyDetailsProps) => {
             <span className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
               نوع العقار: {property.property_type}
             </span>
+            {property.finishing_status && (
+              <span className="rounded-lg bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-700">
+                التشطيب: {property.finishing_status}
+              </span>
+            )}
+            {property.handover_status && (
+              <span className="rounded-lg bg-sky-100 px-4 py-2 text-sm font-medium text-sky-700">
+                الاستلام: {property.handover_status}
+              </span>
+            )}
             <span className="rounded-lg bg-amber-100 px-4 py-2 text-sm font-medium text-amber-700">
               الحالة: {property.listing_type}
             </span>
@@ -98,10 +108,6 @@ export const PropertyDetails = ({ property }: PropertyDetailsProps) => {
           <p className="mb-4 text-lg text-slate-600">
             {property.city} - {property.area_name}
           </p>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="mb-2 text-sm font-medium text-slate-500">ID العقار</p>
-            <p className="break-all font-mono text-sm text-slate-900">{property.id}</p>
-          </div>
         </div>
       </div>
 
@@ -139,20 +145,27 @@ export const PropertyDetails = ({ property }: PropertyDetailsProps) => {
               )}
             </div>
             {images.length > 1 && (
-              <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
-                {images.map((img, idx) => (
-                  <img
-                    key={idx}
-                    src={img}
-                    alt={`${property.name} - ${idx + 1}`}
-                    onClick={() => setCurrentImageIndex(idx)}
-                    className={`w-24 h-24 object-contain bg-slate-100 rounded-lg cursor-pointer border-2 transition-all ${
-                      idx === currentImageIndex
-                        ? "border-amber-500 scale-105"
-                        : "border-transparent opacity-70 hover:opacity-100"
-                    }`}
-                  />
-                ))}
+              <div className="mt-4 h-[172px] overflow-y-auto rounded-xl bg-slate-50 p-2">
+                <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
+                  {images.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setCurrentImageIndex(idx)}
+                      className={`aspect-square w-full overflow-hidden rounded-lg border-2 transition-all ${
+                        idx === currentImageIndex
+                          ? "border-amber-500 scale-105"
+                          : "border-transparent opacity-70 hover:opacity-100"
+                      }`}
+                    >
+                      <img
+                        src={img}
+                        alt={`${property.name} - ${idx + 1}`}
+                        className="h-full w-full bg-slate-100 object-contain p-1"
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -164,15 +177,22 @@ export const PropertyDetails = ({ property }: PropertyDetailsProps) => {
                   <Hash className="w-4 h-4" />
                   {property.property_code || "---"}
                 </span>
-                <span className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg font-medium">
-                  ID: {property.id}
-                </span>
                 <span className="px-4 py-2 bg-slate-900 text-white rounded-lg font-medium">
                   {property.listing_type}
                 </span>
                 <span className="px-4 py-2 bg-amber-100 text-amber-700 rounded-lg font-medium">
                   {property.property_type}
                 </span>
+                {property.finishing_status && (
+                  <span className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg font-medium">
+                    {property.finishing_status}
+                  </span>
+                )}
+                {property.handover_status && (
+                  <span className="px-4 py-2 bg-sky-100 text-sky-700 rounded-lg font-medium">
+                    {property.handover_status}
+                  </span>
+                )}
                 {property.featured && (
                   <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg font-medium">
                     مميز

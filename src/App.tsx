@@ -3,6 +3,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import {
   Property,
+  fetchPublicPropertyByIdentifier,
   fetchPublicProperties,
   getPublicPropertyPath,
 } from "./lib/supabase";
@@ -39,17 +40,39 @@ function HomePage() {
   });
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const propertyId = params.get("property");
-    if (!propertyId) return;
+    const redirectFromLegacyQuery = async () => {
+      const params = new URLSearchParams(location.search);
+      const propertyIdentifier = params.get("property");
+      if (!propertyIdentifier) return;
 
-    if (!isLikelyUuid(propertyId)) {
-      console.warn("Invalid property id in URL:", propertyId);
-      return;
-    }
+      if (!isLikelyUuid(propertyIdentifier) && !properties.length) {
+        return;
+      }
 
-    navigate(getPublicPropertyPath(propertyId), { replace: true });
-  }, [location.search, navigate]);
+      try {
+        const matchedProperty =
+          properties.find(
+            (property) =>
+              property.id === propertyIdentifier ||
+              property.property_code.toLowerCase() ===
+                propertyIdentifier.toLowerCase(),
+          ) ??
+          (await fetchPublicPropertyByIdentifier(propertyIdentifier));
+
+        if (!matchedProperty) {
+          return;
+        }
+
+        navigate(getPublicPropertyPath(matchedProperty.property_code), {
+          replace: true,
+        });
+      } catch (error) {
+        console.error("Error redirecting legacy property URL:", error);
+      }
+    };
+
+    void redirectFromLegacyQuery();
+  }, [location.search, navigate, properties]);
 
   const loadProperties = useCallback(async () => {
     try {
@@ -225,7 +248,9 @@ function HomePage() {
                     <PropertyCard
                       key={property.id}
                       property={property}
-                      onClick={() => navigate(getPublicPropertyPath(property.id))}
+                      onClick={() =>
+                        navigate(getPublicPropertyPath(property.property_code))
+                      }
                     />
                   ))}
                 </div>
@@ -277,7 +302,9 @@ function HomePage() {
                     <PropertyCard
                       key={property.id}
                       property={property}
-                      onClick={() => navigate(getPublicPropertyPath(property.id))}
+                      onClick={() =>
+                        navigate(getPublicPropertyPath(property.property_code))
+                      }
                     />
                   ))}
                 </div>
@@ -298,7 +325,9 @@ function HomePage() {
                     <PropertyCard
                       key={property.id}
                       property={property}
-                      onClick={() => navigate(getPublicPropertyPath(property.id))}
+                      onClick={() =>
+                        navigate(getPublicPropertyPath(property.property_code))
+                      }
                     />
                   ))}
                 </div>
@@ -321,7 +350,9 @@ function HomePage() {
                     <PropertyCard
                       key={property.id}
                       property={property}
-                      onClick={() => navigate(getPublicPropertyPath(property.id))}
+                      onClick={() =>
+                        navigate(getPublicPropertyPath(property.property_code))
+                      }
                     />
                   ))}
                 </div>
@@ -351,7 +382,7 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
-      <Route path="/property/:propertyId" element={<PropertyPage />} />
+      <Route path="/property/:propertyIdentifier" element={<PropertyPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/admin" element={<Admin />} />
     </Routes>

@@ -1,5 +1,6 @@
 import { Bed, Bath, MapPin, Maximize, Hash } from 'lucide-react';
 import { Property } from '../lib/supabase';
+import { getDisplayHandoverStatus } from '../lib/propertyStatus';
 
 interface PropertyCardProps {
   property: Property;
@@ -7,6 +8,7 @@ interface PropertyCardProps {
 }
 
 export const PropertyCard = ({ property, onClick }: PropertyCardProps) => {
+  const handoverStatus = getDisplayHandoverStatus(property);
   const mainImage = property.images && property.images.length > 0
     ? property.images[0]
     : 'https://images.pexels.com/photos/106399/pexels-photo-106399.jpeg?auto=compress&cs=tinysrgb&w=800';
@@ -54,6 +56,14 @@ export const PropertyCard = ({ property, onClick }: PropertyCardProps) => {
           <MapPin className="w-4 h-4" />
           <span className="text-sm">{property.city} - {property.area_name}</span>
         </div>
+
+        {handoverStatus && (
+          <div className="mb-3">
+            <span className="inline-flex rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-700">
+              الاستلام: {handoverStatus}
+            </span>
+          </div>
+        )}
 
         <p className="text-slate-600 text-sm mb-4 line-clamp-2">
           {property.description}
