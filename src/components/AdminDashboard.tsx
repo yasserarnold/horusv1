@@ -6,6 +6,7 @@ import { AdminStats } from './AdminStats';
 import { PropertyDetailsModal } from './PropertyDetailsModal';
 import { CitiesAreasManagement } from './CitiesAreasManagement';
 import { getAreasByCityName } from '../lib/citiesAreas';
+import { PROPERTY_TYPE_OPTIONS } from '../lib/propertyOptions';
 
 interface AdminDashboardProps {
   onClose: () => void;
@@ -275,12 +276,9 @@ export const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
                 >
                   <option value="">جميع الأنواع</option>
-                  <option value="شقة">شقة</option>
-                  <option value="فيلا">فيلا</option>
-                  <option value="مكتب">مكتب</option>
-                  <option value="أرض">أرض</option>
-                  <option value="محل تجاري">محل تجاري</option>
-                  <option value="شاليه">شاليه</option>
+                  {PROPERTY_TYPE_OPTIONS.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
                 </select>
               </div>
               <div>

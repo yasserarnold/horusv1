@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { getCities, getAreasByCityName, City, Area } from '../lib/citiesAreas';
-import { FINISHING_STATUS_OPTIONS, HANDOVER_STATUS_OPTIONS } from '../lib/propertyOptions';
+import { FINISHING_STATUS_OPTIONS, HANDOVER_STATUS_OPTIONS, PROPERTY_TYPE_OPTIONS } from '../lib/propertyOptions';
 
 interface SearchFiltersProps {
   filters: {
@@ -25,7 +25,6 @@ export const SearchFilters = ({ filters, onFilterChange, onSearch }: SearchFilte
   const [cities, setCities] = useState<City[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [loadingAreas, setLoadingAreas] = useState(false);
-  const propertyTypes = ['', 'شقة', 'فيلا', 'مكتب', 'أرض', 'محل تجاري', 'شاليه'];
   const listingTypes = ['', 'للبيع', 'للإيجار'];
 
   // جلب المدن عند تحميل المكون
@@ -109,7 +108,7 @@ export const SearchFilters = ({ filters, onFilterChange, onSearch }: SearchFilte
             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
           >
             <option value="">جميع الأنواع</option>
-            {propertyTypes.filter(t => t).map(type => (
+            {PROPERTY_TYPE_OPTIONS.map(type => (
               <option key={type} value={type}>{type}</option>
             ))}
           </select>

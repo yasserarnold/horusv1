@@ -9,7 +9,7 @@ import {
   uploadPropertyMediaFiles,
 } from '../lib/propertyMedia';
 import { getCities, getAreasByCityName, City, Area } from '../lib/citiesAreas';
-import { FINISHING_STATUS_OPTIONS, HANDOVER_STATUS_OPTIONS } from '../lib/propertyOptions';
+import { FINISHING_STATUS_OPTIONS, HANDOVER_STATUS_OPTIONS, PROPERTY_TYPE_OPTIONS } from '../lib/propertyOptions';
 
 interface PropertyFormProps {
   property: Property | null;
@@ -485,12 +485,9 @@ export const PropertyForm = ({ property, onClose }: PropertyFormProps) => {
                 onChange={handleChange}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               >
-                <option value="شقة">شقة</option>
-                <option value="فيلا">فيلا</option>
-                <option value="مكتب">مكتب</option>
-                <option value="أرض">أرض</option>
-                <option value="محل تجاري">محل تجاري</option>
-                <option value="شاليه">شاليه</option>
+                {PROPERTY_TYPE_OPTIONS.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
               </select>
             </div>
 

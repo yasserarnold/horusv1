@@ -1,3 +1,15 @@
+export const PROPERTY_TYPE_OPTIONS = [
+  "شقة",
+  "استديو",
+  "فيلا",
+  "مكتب",
+  "أرض",
+  "محل تجاري",
+  "شاليه",
+] as const;
+
+export type PropertyType = (typeof PROPERTY_TYPE_OPTIONS)[number];
+
 export const FINISHING_STATUS_OPTIONS = [
   "سوبر لوكس",
   "نصف تشطيب",
